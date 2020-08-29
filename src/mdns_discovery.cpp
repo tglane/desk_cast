@@ -79,12 +79,6 @@ struct dns_query
     dns_question *ques;
 };
 
-struct raw_response
-{
-    sockaddr_storage peer;
-    std::vector<uint8_t> data;
-};
-
 static void to_dns_name_format(char* dns, const char* host)
 {
     int lock = 0;
