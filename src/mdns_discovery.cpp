@@ -6,18 +6,46 @@
 #include <thread>
 #include <future>
 #include <chrono>
+#include <streambuf>
+#include <stdexcept>
 
 #include <iostream>
 
 namespace mdns
 {
 
+constexpr uint16_t MDNS_RESPONSE_FLAG = 0x8400;
+constexpr uint8_t MDNS_OFFSET_TOKEN = 0xC0;
+constexpr size_t MDNS_RECORD_HEADER_LEN = 12;
 
+namespace extension
+{
+
+class membuf : public std::streambuf
+{
+public: 
+    membuf(const unsigned char* base, size_t size)
+    {
+        char* p = reinterpret_cast<char*>(const_cast<unsigned char*>(base));
+        setg(p, p, p + size);
+    }
+
+protected:
+    virtual pos_type seekoff(off_type offset, std::ios_base::seekdir, std::ios_base::openmode mode) override
+    {
+        if(offset == 0 && mode == std::ios_base::in)
+            return pos_type(gptr() - eback());
+        
+        return pos_type(-1);
+    }
+};
+
+}
 
 //DNS header structure
 struct dns_header
 {
-    unsigned short id; // identification number
+    uint16_t id; // identification number
  
     unsigned char rd :1; // recursion desired
     unsigned char tc :1; // truncated message
@@ -31,35 +59,40 @@ struct dns_header
     unsigned char z :1; // its z! reserved
     unsigned char ra :1; // recursion available
  
-    unsigned short q_count; // number of question entries
-    unsigned short ans_count; // number of answer entries
-    unsigned short auth_count; // number of authority entries
-    unsigned short add_count; // number of resource entries
+    uint16_t q_count; // number of question entries
+    uint16_t ans_count; // number of answer entries
+    uint16_t auth_count; // number of authority entries
+    uint16_t add_count; // number of resource entries
 };
  
 //Constant sized fields of query structure
 struct dns_question
 {
-    unsigned short qtype;
-    unsigned short qclass;
+    uint16_t qtype;
+    uint16_t qclass;
 };
- 
 
 //Structure of a Query
 struct dns_query
 {
     unsigned char *name;
-    struct dns_question *ques;
+    dns_question *ques;
 };
 
-static void change_to_dns_name_format(char* dns, const char* host)
+struct raw_response
 {
-    int lock = 0 , i;
-    strcat((char*)host,".");
+    sockaddr_storage peer;
+    std::vector<uint8_t> data;
+};
+
+static void to_dns_name_format(char* dns, const char* host)
+{
+    int lock = 0;
+    strcat((char*)host, ".");
      
-    for(i = 0 ; i < strlen((char*)host) ; i++) 
+    for(int i = 0 ; i < strlen(host) ; i++) 
     {
-        if(host[i]=='.') 
+        if(host[i] == '.') 
         {
             *dns++ = i-lock;
             for(;lock<i;lock++) 
@@ -72,16 +105,120 @@ static void change_to_dns_name_format(char* dns, const char* host)
     *dns++='\0';
 }
 
-std::vector<std::string> mdns_query(const std::string& record_name)
+inline size_t read_fqdn(const std::vector<unsigned char>& data, size_t offset, std::string& result)
+{
+    result.clear();
+    size_t pos = offset;
+    while(1)
+    {
+        if(pos >= data.size())
+            return 0;
+
+        uint8_t len = data[pos++];
+        if(pos + len > data.size())
+            return 0;
+        if(len == 0)
+            break;
+
+        if(!result.empty())
+            result.append(".");
+        result.append(reinterpret_cast<const char*>(&data[pos]), len);
+        pos += len;
+    }
+    return pos - offset;
+}
+
+static mdns_res parse_mdns_answer(std::vector<unsigned char>& buffer)
+{
+    dns_header* dns = reinterpret_cast<dns_header*>(buffer.data());
+    
+    if(buffer.empty() || ntohs(dns->ans_count) == 0)
+        throw std::invalid_argument("Not a valid mdns response.");
+    
+    mdns_res result;
+
+    extension::membuf sbuf(buffer.data(), buffer.size());
+    std::istream is(&sbuf);
+    is.exceptions(std::istream::failbit | std::istream::badbit | std::istream::eofbit);
+
+    try {
+        uint8_t u8;
+        uint16_t u16;
+
+        is.ignore(); // Ignore id
+        is.ignore();
+
+        is.read(reinterpret_cast<char*>(&u16), 2); // Read flags
+        if(ntohs(u16) != MDNS_RESPONSE_FLAG)
+            throw std::invalid_argument("");
+
+        for(int i = 0; i < 8; i++)
+            is.ignore(); // qdcount, ancount, nscount, arcount
+
+        size_t br = read_fqdn(buffer, static_cast<size_t>(is.tellg()), result.qname);
+        if(br == 0)
+            throw std::invalid_argument("");
+
+        for(int i = 0; i < br; i++)
+            is.ignore();
+
+        is.read(reinterpret_cast<char*>(&u16), 2); // qtype
+        result.qtype = ntohs(u16);
+
+        is.ignore(); // ignore qclass
+        is.ignore();
+
+        while(1)
+        {
+            is.exceptions(std::istream::goodbit);
+            if(is.peek() == EOF);
+                break;
+            is.exceptions(std::istream::failbit | std::istream::badbit | std::istream::eofbit);
+
+            mdns_record rec;
+            rec.pos = static_cast<size_t>(is.tellg());
+
+            is.read(reinterpret_cast<char*>(&u8), 1); // offset token
+            if(u8 != MDNS_OFFSET_TOKEN)
+                throw std::invalid_argument("");
+            
+            is.read(reinterpret_cast<char*>(&u8), 1); // offset value
+            if(u8 >= buffer.size() || u8 + buffer[u8] >= buffer.size())
+                throw std::invalid_argument("");
+
+            rec.name = std::string(reinterpret_cast<const char*>(&buffer[u8 + 1]), buffer[u8]);
+            
+            is.read(reinterpret_cast<char*>(&u16), 2); // type
+            rec.type = ntohs(u16);
+
+            for(int i = 0; i < 6; i++)
+                is.ignore(); // ignore qclass, ttl
+
+            is.read(reinterpret_cast<char*>(&u16), 2); // length
+            for(int i = 0; i < ntohs(u16); i++)
+                is.ignore(); // data
+
+            rec.len = MDNS_RECORD_HEADER_LEN + ntohs(u16);
+
+            result.records.push_back(std::move(rec));
+        }
+
+    } catch(std::istream::failure& e) {
+        throw std::invalid_argument("No parseable response.");
+    }
+
+    return result;
+}
+
+std::vector<mdns_res> mdns_discovery(const std::string& record_name)
 {
     bool stop = false;
-    // const char* query = "_googlecast._tcp.local";
     socketwrapper::UDPSocket q_sock(AF_INET);
-    std::vector<std::string> res;
+    std::vector<mdns_res> res;
 
-
-    char query[6536], *qname;
-    dns_header* dns = (dns_header*) &query;
+    // Set up mdns query
+    char query[6536];
+    dns_header* dns = reinterpret_cast<dns_header*>(&query);
     dns->id = 0x0000;
     dns->qr = 0;
     dns->opcode = 0;
@@ -98,28 +235,31 @@ std::vector<std::string> mdns_query(const std::string& record_name)
     dns->auth_count = 0;
     dns->add_count = 0;
 
-    qname = (char*) &query[sizeof(dns_header)];
-    change_to_dns_name_format(qname, record_name.data());
+    char* qname = reinterpret_cast<char*>(&query[sizeof(dns_header)]);
+    to_dns_name_format(qname, record_name.data());
 
-    dns_question* qinfo = (dns_question*) &query[sizeof(dns_header) + (strlen((const char*)qname) + 1)];
+    dns_question* qinfo = reinterpret_cast<dns_question*>(&query[sizeof(dns_header) + (strlen((const char*) qname) + 1)]);
     qinfo->qtype = htons(12);
     qinfo->qclass = htons(1);
 
-    // Set up query
+    // Send up query
     q_sock.bind("0.0.0.0", 5353);
     q_sock.send_to<char>(query, sizeof(dns_header) + (strlen((const char*)qname)+1) + sizeof(dns_question), QUERY_PORT, QUERY_IP);
 
-    auto fut = std::async(std::launch::async, [&stop, &q_sock, &res]() 
+    // Receive answers for QUERY_TIME seconds
+    auto fut = std::async(std::launch::async, [&stop, &q_sock, &res, &qname]()
     {
         while(!stop)
         {
             if(q_sock.bytes_available())
             {
-                // std::unique_ptr<char[]> buffer = q_sock.receive<char>(1024, nullptr);
-                std::vector<char> buffer = q_sock.receive_vector<char>(1024, nullptr);
+                std::vector<unsigned char> buffer = q_sock.receive_vector<unsigned char>(4096, nullptr);
 
-                std::cout << "[DEBUG] " << buffer.size() << std::endl;
-                res.emplace_back(buffer.data());
+                try {
+                    res.push_back(parse_mdns_answer(buffer));
+                } catch(std::exception& e) {
+                    // ... No valid mdns answer so just skip it
+                }
             }
         }
     });

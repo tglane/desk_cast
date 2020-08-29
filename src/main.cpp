@@ -51,11 +51,11 @@ void main_mdns()
 {
     using namespace mdns;
 
-    // TODO
-    std::vector<std::string> responses = mdns_query("_googlecast._tcp.local");
-
+    std::vector<mdns_res> responses = mdns_discovery("_googlecast._tcp.local");
     for(const auto& it : responses)
-        std::cout << it << "\n-------------------\n\n";
+    {
+        std::cout << it.qname << std::endl;
+    }
 }
 
 int main()

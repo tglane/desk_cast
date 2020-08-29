@@ -7,6 +7,7 @@
 #include <thread>
 #include <future>
 #include <chrono>
+#include <stdexcept>
 
 namespace dial
 {

@@ -6,6 +6,8 @@
 #include <vector>
 #include <map>
 
+#include <sys/socket.h>
+
 #define QUERY_IP "224.0.0.251"
 #define QUERY_PORT 5353
 #define QUERY_TIME 5000
@@ -13,26 +15,26 @@
 namespace mdns
 {
 
-//Constant sized fields of the resource record structure
-#pragma pack(push, 1)
-struct r_data
+struct mdns_record
 {
-    unsigned short type;
-    unsigned short _class;
-    unsigned int ttl;
-    unsigned short data_len;
+    uint16_t type;
+    size_t pos;
+    size_t len;
+    std::string name;
 };
-#pragma pack(pop)
- 
-//Pointers to resource record contents
-struct res_record
+
+struct mdns_res
 {
-    unsigned char* name;
-    r_data* resource;
-    unsigned char* rdata;
+    sockaddr_storage peer;
+    std::string address;
+    int port;
+    uint16_t qtype;
+    std::string qname;
+    std::vector<uint8_t> data;
+    std::vector<mdns_record> records;
 };
- 
-std::vector<std::string> mdns_query(const std::string& record_name);
+
+std::vector<mdns_res> mdns_discovery(const std::string& record_name);
 
 }
 
