@@ -7,6 +7,7 @@
 #include <future>
 #include <chrono>
 #include <streambuf>
+#include <istream>
 #include <stdexcept>
 
 #include <iostream>
@@ -99,7 +100,7 @@ static void to_dns_name_format(char* dns, const char* host)
     *dns++='\0';
 }
 
-inline size_t read_fqdn(const std::vector<unsigned char>& data, size_t offset, std::string& result)
+static size_t read_fqdn(const std::vector<unsigned char>& data, size_t offset, std::string& result)
 {
     result.clear();
     size_t pos = offset;
@@ -139,59 +140,51 @@ static mdns_res parse_mdns_answer(std::vector<unsigned char>& buffer)
         uint8_t u8;
         uint16_t u16;
 
-        is.ignore(); // Ignore id
-        is.ignore();
+        is.ignore(2); // Ignore id
 
         is.read(reinterpret_cast<char*>(&u16), 2); // Read flags
         if(ntohs(u16) != MDNS_RESPONSE_FLAG)
-            throw std::invalid_argument("");
+            throw std::invalid_argument("No valid mdns response flags");
 
-        for(int i = 0; i < 8; i++)
-            is.ignore(); // qdcount, ancount, nscount, arcount
+        is.ignore(8); // qdcount, ancount, nscount, arcount
 
         size_t br = read_fqdn(buffer, static_cast<size_t>(is.tellg()), result.qname);
         if(br == 0)
             throw std::invalid_argument("");
+        is.ignore(br);
 
-        for(int i = 0; i < br; i++)
-            is.ignore();
-
-        is.read(reinterpret_cast<char*>(&u16), 2); // qtype
+        is.read(reinterpret_cast<char*>(&u16), 2); // qtype 
         result.qtype = ntohs(u16);
 
-        is.ignore(); // ignore qclass
-        is.ignore();
+        is.ignore(2); // ignore qclass
 
+        // TODO parsing of the records not working .. 
         while(1)
         {
             is.exceptions(std::istream::goodbit);
-            if(is.peek() == EOF);
+            if(is.peek() == EOF)
                 break;
             is.exceptions(std::istream::failbit | std::istream::badbit | std::istream::eofbit);
 
-            mdns_record rec;
+            mdns_record rec = {};
             rec.pos = static_cast<size_t>(is.tellg());
 
             is.read(reinterpret_cast<char*>(&u8), 1); // offset token
             if(u8 != MDNS_OFFSET_TOKEN)
-                throw std::invalid_argument("");
+                throw std::invalid_argument("Wrong mdns offset token");
             
             is.read(reinterpret_cast<char*>(&u8), 1); // offset value
             if(u8 >= buffer.size() || u8 + buffer[u8] >= buffer.size())
-                throw std::invalid_argument("");
+                throw std::invalid_argument("Wrong offset value");
 
             rec.name = std::string(reinterpret_cast<const char*>(&buffer[u8 + 1]), buffer[u8]);
             
             is.read(reinterpret_cast<char*>(&u16), 2); // type
             rec.type = ntohs(u16);
+            is.ignore(6); // ignore qclass and ttl
 
-            for(int i = 0; i < 6; i++)
-                is.ignore(); // ignore qclass, ttl
-
-            is.read(reinterpret_cast<char*>(&u16), 2); // length
-            for(int i = 0; i < ntohs(u16); i++)
-                is.ignore(); // data
-
+            is.read(reinterpret_cast<char*>(&u16), 2); // data length
+            is.ignore(ntohs(u16)); // ignore data
             rec.len = MDNS_RECORD_HEADER_LEN + ntohs(u16);
 
             result.records.push_back(std::move(rec));
@@ -241,17 +234,22 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
     q_sock.send_to<char>(query, sizeof(dns_header) + (strlen((const char*)qname)+1) + sizeof(dns_question), QUERY_PORT, QUERY_IP);
 
     // Receive answers for QUERY_TIME seconds
-    auto fut = std::async(std::launch::async, [&stop, &q_sock, &res, &qname]()
+    auto fut = std::async(std::launch::async, [&stop, &q_sock, &res]()
     {
         while(!stop)
         {
             if(q_sock.bytes_available())
             {
-                std::vector<unsigned char> buffer = q_sock.receive_vector<unsigned char>(4096, nullptr);
+                sockaddr_storage peer;
+                std::vector<unsigned char> buffer = q_sock.receive_vector<unsigned char>(4096, reinterpret_cast<sockaddr_in*>(&peer));
 
                 try {
-                    res.push_back(parse_mdns_answer(buffer));
+                    mdns_res tmp = parse_mdns_answer(buffer);
+                    tmp.peer = peer;
+
+                    res.push_back(std::move(tmp));
                 } catch(std::exception& e) {
+                    std::cout << e.what() << std::endl;
                     // ... No valid mdns answer so just skip it
                 }
             }

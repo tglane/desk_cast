@@ -30,7 +30,6 @@ struct mdns_res
     int port;
     uint16_t qtype;
     std::string qname;
-    std::vector<uint8_t> data;
     std::vector<mdns_record> records;
 };
 
