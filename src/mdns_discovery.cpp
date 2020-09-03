@@ -8,6 +8,7 @@
 #include <chrono>
 #include <streambuf>
 #include <istream>
+#include <sstream>
 #include <stdexcept>
 
 #include <iostream>
@@ -18,30 +19,6 @@ namespace mdns
 constexpr uint16_t MDNS_RESPONSE_FLAG = 0x8400;
 constexpr uint8_t MDNS_OFFSET_TOKEN = 0xC0;
 constexpr size_t MDNS_RECORD_HEADER_LEN = 12;
-
-namespace extension
-{
-
-class membuf : public std::streambuf
-{
-public: 
-    membuf(const unsigned char* base, size_t size)
-    {
-        char* p = reinterpret_cast<char*>(const_cast<unsigned char*>(base));
-        setg(p, p, p + size);
-    }
-
-protected:
-    virtual pos_type seekoff(off_type offset, std::ios_base::seekdir, std::ios_base::openmode mode) override
-    {
-        if(offset == 0 && mode == std::ios_base::in)
-            return pos_type(gptr() - eback());
-        
-        return pos_type(-1);
-    }
-};
-
-}
 
 //DNS header structure
 struct dns_header
@@ -80,24 +57,24 @@ struct dns_query
     dns_question *ques;
 };
 
-static void to_dns_name_format(char* dns, const char* host)
+static void to_dns_name_format(char* dns, std::string_view host)
 {
     int lock = 0;
-    strcat((char*)host, ".");
      
-    for(int i = 0 ; i < strlen(host) ; i++) 
+    for(int i = 0; i <= host.size(); i++)
     {
-        if(host[i] == '.') 
+        if(i == host.size() || host[i] == '.')
         {
-            *dns++ = i-lock;
-            for(;lock<i;lock++) 
+            *dns++ = i - lock;
+            while(lock < i)
             {
                 *dns++=host[lock];
+                lock++;
             }
-            lock++; //or lock=i+1;
+            lock++;
         }
     }
-    *dns++='\0';
+    *dns++ ='\0';
 }
 
 static size_t read_fqdn(const std::vector<unsigned char>& data, size_t offset, std::string& result)
@@ -132,8 +109,7 @@ static mdns_res parse_mdns_answer(std::vector<unsigned char>& buffer)
     
     mdns_res result;
 
-    extension::membuf sbuf(buffer.data(), buffer.size());
-    std::istream is(&sbuf);
+    std::istringstream is(std::string(reinterpret_cast<char*>(buffer.data()), buffer.size()));
     is.exceptions(std::istream::failbit | std::istream::badbit | std::istream::eofbit);
 
     try {
@@ -159,6 +135,9 @@ static mdns_res parse_mdns_answer(std::vector<unsigned char>& buffer)
         is.ignore(2); // ignore qclass
 
         // TODO parsing of the records not working .. 
+        // for(const auto& it : buffer)
+        //     std::cout << it << std::endl;
+
         while(1)
         {
             is.exceptions(std::istream::goodbit);
