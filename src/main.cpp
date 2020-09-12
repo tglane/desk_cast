@@ -55,10 +55,9 @@ void main_mdns()
     for(const auto& it : responses)
     {
         std::cout << it.qname << std::endl;
-        std::cout << it.records.size() << '\n';
 
         for(const auto& rec : it.records)
-            std::cout << rec.name << '\n';
+            std::cout << "Type: " << rec.type << " | Length: " << rec.data.size() << std::endl;
     }
 }
 

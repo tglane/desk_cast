@@ -18,7 +18,6 @@ namespace mdns
 
 constexpr uint16_t MDNS_RESPONSE_FLAG = 0x8400;
 constexpr uint8_t MDNS_OFFSET_TOKEN = 0xC0;
-constexpr size_t MDNS_RECORD_HEADER_LEN = 12;
 
 //DNS header structure
 struct dns_header
@@ -77,10 +76,12 @@ static void to_dns_name_format(char* dns, std::string_view host)
     *dns++ ='\0';
 }
 
-static size_t read_fqdn(const std::vector<unsigned char>& data, size_t offset, std::string& result)
+static size_t read_fqdn(const std::vector<char>& data, size_t offset, std::string& result)
 {
+    // fqdn = fully qualified domain names
     result.clear();
     size_t pos = offset;
+
     while(1)
     {
         if(pos >= data.size())
@@ -100,77 +101,51 @@ static size_t read_fqdn(const std::vector<unsigned char>& data, size_t offset, s
     return pos - offset;
 }
 
-static mdns_res parse_mdns_answer(std::vector<unsigned char>& buffer)
+static mdns_res parse_mdns_answer(std::vector<char>& buffer)
 {
     dns_header* dns = reinterpret_cast<dns_header*>(buffer.data());
     
-    if(buffer.empty() || ntohs(dns->ans_count) == 0)
+    if(buffer.empty() || ntohs(dns->ans_count) == 0 || ntohs(dns->q_count) > 0)
         throw std::invalid_argument("Not a valid mdns response.");
     
     mdns_res result;
 
-    std::istringstream is(std::string(reinterpret_cast<char*>(buffer.data()), buffer.size()));
-    is.exceptions(std::istream::failbit | std::istream::badbit | std::istream::eofbit);
+    std::istringstream b_stream(std::string(reinterpret_cast<char*>(buffer.data()), buffer.size()));
+    b_stream.exceptions(std::istream::failbit | std::istream::badbit | std::istream::eofbit);
 
     try {
-        uint8_t u8;
-        uint16_t u16;
+        b_stream.ignore(sizeof(dns_header));
 
-        is.ignore(2); // Ignore id
-
-        is.read(reinterpret_cast<char*>(&u16), 2); // Read flags
-        if(ntohs(u16) != MDNS_RESPONSE_FLAG)
-            throw std::invalid_argument("No valid mdns response flags");
-
-        is.ignore(8); // qdcount, ancount, nscount, arcount
-
-        size_t br = read_fqdn(buffer, static_cast<size_t>(is.tellg()), result.qname);
-        if(br == 0)
-            throw std::invalid_argument("");
-        is.ignore(br);
-
-        is.read(reinterpret_cast<char*>(&u16), 2); // qtype 
-        result.qtype = ntohs(u16);
-
-        is.ignore(2); // ignore qclass
-
-        // TODO parsing of the records not working .. 
-        // for(const auto& it : buffer)
-        //     std::cout << it << std::endl;
-
-        while(1)
+        // Parse records
+        for(size_t i = 0; i < (ntohs(dns->ans_count) + ntohs(dns->auth_count) + ntohs(dns->add_count)); i++)
         {
-            is.exceptions(std::istream::goodbit);
-            if(is.peek() == EOF)
-                break;
-            is.exceptions(std::istream::failbit | std::istream::badbit | std::istream::eofbit);
+            uint16_t u16;
+            result.records.emplace_back();
+            mdns_record& rec = result.records.back();
 
-            mdns_record rec = {};
-            rec.pos = static_cast<size_t>(is.tellg());
-
-            is.read(reinterpret_cast<char*>(&u8), 1); // offset token
-            if(u8 != MDNS_OFFSET_TOKEN)
-                throw std::invalid_argument("Wrong mdns offset token");
+            // Check if name is empty (?)
+            size_t n_len;
+            if((uint8_t) buffer[b_stream.tellg()] == MDNS_OFFSET_TOKEN ||
+                (uint8_t) buffer[b_stream.tellg()] == 0xC1) // TODO check what this means ... got this from wireshark (A record) but no idea what it is
+                n_len = 2;
+            else
+                n_len = read_fqdn(buffer, b_stream.tellg(), rec.name);
             
-            is.read(reinterpret_cast<char*>(&u8), 1); // offset value
-            if(u8 >= buffer.size() || u8 + buffer[u8] >= buffer.size())
-                throw std::invalid_argument("Wrong offset value");
-
-            rec.name = std::string(reinterpret_cast<const char*>(&buffer[u8 + 1]), buffer[u8]);
-            
-            is.read(reinterpret_cast<char*>(&u16), 2); // type
+            b_stream.ignore(n_len);
+            b_stream.read(reinterpret_cast<char*>(&u16), 2);
             rec.type = ntohs(u16);
-            is.ignore(6); // ignore qclass and ttl
 
-            is.read(reinterpret_cast<char*>(&u16), 2); // data length
-            is.ignore(ntohs(u16)); // ignore data
-            rec.len = MDNS_RECORD_HEADER_LEN + ntohs(u16);
+            b_stream.ignore(6);
+            b_stream.read(reinterpret_cast<char*>(&u16), 2);
+            rec.length = ntohs(u16);
 
-            result.records.push_back(std::move(rec));
+            rec.data.resize(rec.length);
+            b_stream.read(rec.data.data(), rec.length);
+
         }
-
-    } catch(std::istream::failure& e) {
-        throw std::invalid_argument("No parseable response.");
+    } catch(std::exception& e) {
+        // Response could not be parsed like an expected response from a chromecast
+        return {};
     }
 
     return result;
@@ -183,23 +158,10 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
     std::vector<mdns_res> res;
 
     // Set up mdns query
-    char query[6536];
+    char query[6536] = { 0 };
     dns_header* dns = reinterpret_cast<dns_header*>(&query);
-    dns->id = 0x0000;
-    dns->qr = 0;
-    dns->opcode = 0;
-    dns->aa = 0;
-    dns->tc = 0;
     dns->rd = 1;
-    dns->ra = 0;
-    dns->z = 0;
-    dns->ad = 0;
-    dns->cd = 0;
-    dns->rcode = 0;
     dns->q_count = htons(1);
-    dns->ans_count = 0;
-    dns->auth_count = 0;
-    dns->add_count = 0;
 
     char* qname = reinterpret_cast<char*>(&query[sizeof(dns_header)]);
     to_dns_name_format(qname, record_name.data());
@@ -220,7 +182,7 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
             if(q_sock.bytes_available())
             {
                 sockaddr_storage peer;
-                std::vector<unsigned char> buffer = q_sock.receive_vector<unsigned char>(4096, reinterpret_cast<sockaddr_in*>(&peer));
+                std::vector<char> buffer = q_sock.receive_vector<char>(4096, reinterpret_cast<sockaddr_in*>(&peer));
 
                 try {
                     mdns_res tmp = parse_mdns_answer(buffer);

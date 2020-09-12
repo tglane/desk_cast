@@ -1,4 +1,5 @@
 CC := g++
+# CC := clang++-6.0
 
 CFLAGS := -std=c++17 -Iinclude -fpic -O3
 LDFLAGS := -L./lib -lsocketwrapper -lpthread
