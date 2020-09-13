@@ -120,8 +120,8 @@ static mdns_res parse_mdns_answer(std::vector<char>& buffer)
         for(size_t i = 0; i < (ntohs(dns->ans_count) + ntohs(dns->auth_count) + ntohs(dns->add_count)); i++)
         {
             uint16_t u16;
-            result.records.emplace_back();
-            mdns_record& rec = result.records.back();
+            mdns_record& rec = result.records.emplace_back();
+            // mdns_record& rec = result.records.back();
 
             // Check if name is empty (?)
             size_t n_len;

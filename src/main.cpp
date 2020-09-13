@@ -6,6 +6,7 @@
 
 #include <dial_discovery.hpp>
 #include <mdns_discovery.hpp>
+#include <chromecast.hpp>
 
 void main_dial() 
 {
@@ -52,12 +53,38 @@ void main_mdns()
     using namespace mdns;
 
     std::vector<mdns_res> responses = mdns_discovery("_googlecast._tcp.local");
+    
+    std::vector<chromecast> devices;
+    devices.reserve(responses.size());
+
     for(const auto& it : responses)
     {
-        std::cout << it.qname << std::endl;
+        chromecast& chr = devices.emplace_back();
+        // chromecast& chr = devices.back();
 
+        // Get all information to "contsturct" a chromecast device from the response
         for(const auto& rec : it.records)
-            std::cout << "Type: " << rec.type << " | Length: " << rec.data.size() << std::endl;
+        {
+            chr.set_addr(it.peer);
+
+            switch(rec.type)
+            {
+                case 1:     // A record
+                    break;
+                case 5:     // CNAME record
+                    break;
+                case 12:    // PTR record
+                    break;
+                case 16:    // TXT record
+                    break;
+                case 28:    // AAAA record
+                    break;
+                case 33:    // SRV record
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 }
 

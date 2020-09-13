@@ -15,15 +15,6 @@
 namespace mdns
 {
 
-enum mdns_rec_type : uint16_t {
-    A = 1,
-    AAAA = 28,
-    CNAME = 5,
-    PTR = 12,
-    SRV = 33,
-    TXT = 16
-};
-
 struct mdns_record
 {
     std::string name;
@@ -41,6 +32,14 @@ struct mdns_res
 };
 
 std::vector<mdns_res> mdns_discovery(const std::string& record_name);
+
+std::string parse_ptr_record(const mdns_record& rec);
+
+std::map<std::string, std::string> parse_txt_record(const mdns_record& rec);
+
+void parse_srv_record(const mdns_record& rec);
+
+sockaddr_storage parse_a_record(const mdns_record& rec);
 
 }
 
