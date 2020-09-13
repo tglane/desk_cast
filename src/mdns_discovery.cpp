@@ -121,7 +121,6 @@ static mdns_res parse_mdns_answer(std::vector<char>& buffer)
         {
             uint16_t u16;
             mdns_record& rec = result.records.emplace_back();
-            // mdns_record& rec = result.records.back();
 
             // Check if name is empty (?)
             size_t n_len;
@@ -190,7 +189,6 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
 
                     res.push_back(std::move(tmp));
                 } catch(std::exception& e) {
-                    std::cout << e.what() << std::endl;
                     // ... No valid mdns answer so just skip it
                 }
             }
@@ -203,6 +201,46 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
 
     q_sock.close();
     return res;
+}
+
+void parse_ptr_record(const mdns_record& rec, std::string& dest_name)
+{
+    dest_name = std::string(rec.data.begin() + 1, rec.data.end());
+}
+
+std::map<std::string, std::string> parse_txt_record(const mdns_record& rec)
+{
+    // Structure: 
+    // [1 byte -> len] [key=value of length len] ...
+    size_t off = 0;
+    while(off < rec.data.size())
+    {
+        size_t len = static_cast<uint8_t>(rec.data[off++]);
+
+        // TODO parse key value pairs
+
+        off += len;
+    }
+
+    return {};
+}
+
+void parse_srv_record(const mdns_record& rec, uint32_t& dest_port, std::string& dest_target)
+{
+    // port : byte 4 and 5
+    // target : byte 6 to size()
+    dest_port = ntohs(*reinterpret_cast<const uint32_t*>(&rec.data[4]));
+    if(rec.data.size() > 7)
+        dest_target = std::string(rec.data.begin() + 7, rec.data.end());
+}
+
+void parse_a_record(const mdns_record& rec, std::string& dest_addr)
+{
+    for(size_t i = 0; i < rec.data.size(); i++)
+        dest_addr.append((i < rec.data.size() - 1) ? 
+            std::to_string(static_cast<unsigned char>(rec.data[i])) + '.' : 
+            std::to_string(static_cast<unsigned char>(rec.data[i])));
+
 }
 
 }

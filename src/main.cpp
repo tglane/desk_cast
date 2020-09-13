@@ -6,7 +6,7 @@
 
 #include <dial_discovery.hpp>
 #include <mdns_discovery.hpp>
-#include <chromecast.hpp>
+#include <cast_device.hpp>
 
 void main_dial() 
 {
@@ -54,34 +54,44 @@ void main_mdns()
 
     std::vector<mdns_res> responses = mdns_discovery("_googlecast._tcp.local");
     
-    std::vector<chromecast> devices;
+    std::vector<cast_device> devices;
     devices.reserve(responses.size());
+
+    std::cout << "Received " << responses.size() << " responses from potential googlecast devices.\n";
 
     for(const auto& it : responses)
     {
-        chromecast& chr = devices.emplace_back();
-        // chromecast& chr = devices.back();
+        cast_device& chr = devices.emplace_back();
 
         // Get all information to "contsturct" a chromecast device from the response
         for(const auto& rec : it.records)
         {
-            chr.set_addr(it.peer);
-
             switch(rec.type)
             {
-                case 1:     // A record
+                case 1:
+                    // A record
+                    parse_a_record(rec, chr.ip);
                     break;
-                case 5:     // CNAME record
+                case 5:
+                    // CNAME record
                     break;
-                case 12:    // PTR record
+                case 12:
+                    // PTR record
+                    parse_ptr_record(rec, chr.name);
                     break;
-                case 16:    // TXT record
+                case 16:
+                    // TXT record
+                    parse_txt_record(rec);
                     break;
-                case 28:    // AAAA record
+                case 28:
+                    // AAAA record
                     break;
-                case 33:    // SRV record
+                case 33:
+                    // SRV record
+                    parse_srv_record(rec, chr.port, chr.target);
                     break;
                 default:
+                    // Skip all not expected record types
                     break;
             }
         }
