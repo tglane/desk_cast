@@ -81,7 +81,7 @@ void main_mdns()
                     break;
                 case 16:
                     // TXT record
-                    parse_txt_record(rec);
+                    parse_txt_record(rec, chr.txt);
                     break;
                 case 28:
                     // AAAA record

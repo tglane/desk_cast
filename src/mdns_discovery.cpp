@@ -208,21 +208,24 @@ void parse_ptr_record(const mdns_record& rec, std::string& dest_name)
     dest_name = std::string(rec.data.begin() + 1, rec.data.end());
 }
 
-std::map<std::string, std::string> parse_txt_record(const mdns_record& rec)
+void parse_txt_record(const mdns_record& rec, std::map<std::string, std::string>& dest_txt)
 {
-    // Structure: 
-    // [1 byte -> len] [key=value of length len] ...
+    // Structure of rec.data: 
+    // [1 byte -> len][key=value of length len]...
     size_t off = 0;
     while(off < rec.data.size())
     {
         size_t len = static_cast<uint8_t>(rec.data[off++]);
 
-        // TODO parse key value pairs
+        std::string_view view(&rec.data[off], len);
+        size_t sep = view.find_first_of('=');
+        if(sep != std::string::npos)
+            dest_txt.insert(std::pair<std::string, std::string>(
+                std::string(&rec.data[off], sep),
+                std::string(&rec.data[off + sep + 1], len - sep)));
 
         off += len;
     }
-
-    return {};
 }
 
 void parse_srv_record(const mdns_record& rec, uint32_t& dest_port, std::string& dest_target)

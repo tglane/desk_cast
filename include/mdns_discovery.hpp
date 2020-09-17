@@ -35,7 +35,7 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name);
 
 void parse_ptr_record(const mdns_record& rec, std::string& dest_name);
 
-std::map<std::string, std::string> parse_txt_record(const mdns_record& rec);
+void parse_txt_record(const mdns_record& rec, std::map<std::string, std::string>& dest_txt);
 
 void parse_srv_record(const mdns_record& rec, uint32_t& dest_port, std::string& dest_target);
 
