@@ -3,10 +3,14 @@
 
 #include <socketwrapper/UDPSocket.hpp>
 #include <socketwrapper/TCPSocket.hpp>
+#include <socketwrapper/SSLTCPSocket.hpp>
 
 #include <dial_discovery.hpp>
 #include <mdns_discovery.hpp>
 #include <cast_device.hpp>
+
+#define SSL_CERT "/etc/ssl/certs/cert.pem"
+#define SSL_KEY "/etc/ssl/private/key.pem"
 
 void main_dial() 
 {
@@ -53,49 +57,28 @@ void main_mdns()
     using namespace mdns;
 
     std::vector<mdns_res> responses = mdns_discovery("_googlecast._tcp.local");
+    std::cout << "Received " << responses.size() << " responses from potential googlecast devices.\n";
     
+    if(responses.size() == 0)
+        return;
+
     std::vector<cast_device> devices;
     devices.reserve(responses.size());
-
-    std::cout << "Received " << responses.size() << " responses from potential googlecast devices.\n";
-
     for(const auto& it : responses)
     {
-        cast_device& chr = devices.emplace_back();
-
-        // Get all information to "contsturct" a chromecast device from the response
-        for(const auto& rec : it.records)
-        {
-            switch(rec.type)
-            {
-                case 1:
-                    // A record
-                    parse_a_record(rec, chr.ip);
-                    break;
-                case 5:
-                    // CNAME record
-                    break;
-                case 12:
-                    // PTR record
-                    parse_ptr_record(rec, chr.name);
-                    break;
-                case 16:
-                    // TXT record
-                    parse_txt_record(rec, chr.txt);
-                    break;
-                case 28:
-                    // AAAA record
-                    break;
-                case 33:
-                    // SRV record
-                    parse_srv_record(rec, chr.port, chr.target);
-                    break;
-                default:
-                    // Skip all not expected record types
-                    break;
-            }
-        }
+        devices.emplace_back(it);
     }
+
+    // for(const auto& dev : devices)
+    // {
+    //     socketwrapper::SSLTCPSocket conn(AF_INET, "/etc/ssl/certs/cert.pem", "/etc/ssl/private/key.pem");
+    //     try {
+    //         conn.connect(dev.port, dev.ip);
+    //     } catch(std::exception& e) {
+    //         std::cout << "Not connected" << std::endl;
+    //     }
+    //     std::cout << "Connected" << std::endl;
+    // }
 }
 
 int main()

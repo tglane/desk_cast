@@ -124,8 +124,8 @@ static mdns_res parse_mdns_answer(std::vector<char>& buffer)
 
             // Check if name is empty (?)
             size_t n_len;
-            if((uint8_t) buffer[b_stream.tellg()] == MDNS_OFFSET_TOKEN ||
-                (uint8_t) buffer[b_stream.tellg()] == 0xC1) // TODO check what this means ... got this from wireshark (A record) but no idea what it is
+            if(static_cast<uint8_t>(buffer[b_stream.tellg()]) == MDNS_OFFSET_TOKEN ||
+                static_cast<uint8_t>(buffer[b_stream.tellg()]) == 0xC1) // TODO check what this means ... got this from wireshark (A record) but no idea what it is
                 n_len = 2;
             else
                 n_len = read_fqdn(buffer, b_stream.tellg(), rec.name);
@@ -205,7 +205,11 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
 
 void parse_ptr_record(const mdns_record& rec, std::string& dest_name)
 {
-    dest_name = std::string(rec.data.begin() + 1, rec.data.end());
+    // Check if name in record contains pointer
+    if(static_cast<uint8_t>(*(rec.data.end() - 2)) == MDNS_OFFSET_TOKEN)
+        dest_name = std::string(rec.data.begin() + 1, rec.data.end() - 2);
+    else
+        dest_name = std::string(rec.data.begin() + 1, rec.data.end());
 }
 
 void parse_txt_record(const mdns_record& rec, std::map<std::string, std::string>& dest_txt)
