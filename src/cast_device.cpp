@@ -1,8 +1,8 @@
 #include <cast_device.hpp>
 
-#include "../protos/cast_channel.pb.h"
-
 #include <iostream>
+
+using extensions::core_api::cast_channel::CastMessage;
 
 const char* source_id = "sender-0";
 const char* receiver_id = "receiver-0";
@@ -59,16 +59,20 @@ bool cast_device::connect()
     this->send("urn:x-cast:com.google.cast.receiver", "", 
         R"({ "type": "GET_STATUS", "requestId": 0 })");
 
-    this->receive();
+    CastMessage msg;
+    if(!this->receive(msg))
+        return false;
+    
+    std::cout << "[DEBUG]: " << msg.namespace_() << std::endl;
+    std::cout << "[DEBUG]: " << msg.payload_type() << std::endl;
+    std::cout << "[DEBUG]: " << msg.payload_utf8() << std::endl;
 
     return true;
 }
 
 bool cast_device::send(const std::string_view nspace, const std::string_view dest_id, std::string_view payload) const
 {
-    using namespace extensions::core_api;
-
-    cast_channel::CastMessage msg;
+    CastMessage msg;
     msg.set_payload_type(msg.STRING);
     msg.set_protocol_version(msg.CASTV2_1_0);
     msg.set_namespace_(nspace.data());
@@ -80,21 +84,16 @@ bool cast_device::send(const std::string_view nspace, const std::string_view des
     return true;
 }
 
-bool cast_device::receive() const
+bool cast_device::receive(CastMessage& dest_msg) const
 {
-    using extensions::core_api::cast_channel::CastMessage;
-
     std::unique_ptr<char[]> pkglen = m_sock_ptr->read<char>(4);
-    uint32_t len;
-    std::memcpy(&len, pkglen.get(), sizeof(len));
-    len = ntohl(len);
+    uint32_t len = ntohl(*reinterpret_cast<uint32_t*>(pkglen.get()));
     std::cout << "PKGLEN: " << len << std::endl;
 
-    std::unique_ptr<char[]> msg_buf = m_sock_ptr->read<char>(88);
-    CastMessage msg;
-    if(!msg.ParseFromString(msg_buf.get()))
-        std::cout << "could not parse message" << std::endl;
-    else
-        std::cout << "could parse" << std::endl;
+    std::unique_ptr<char[]> msg_buf = m_sock_ptr->read<char>(len);
     
+    if(!dest_msg.ParseFromArray(msg_buf.get(), len))
+        return false;
+    else
+        return true;
 }

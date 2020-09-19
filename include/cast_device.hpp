@@ -6,7 +6,7 @@
 #include <map>
 
 #include <socketwrapper/SSLTCPSocket.hpp>
-
+#include "../protos/cast_channel.pb.h"
 #include <mdns_discovery.hpp>
 
 class cast_device
@@ -26,7 +26,7 @@ private:
 
     bool send(const std::string_view nspace, const std::string_view dest_id, std::string_view payload) const;
 
-    bool receive() const;
+    bool receive(extensions::core_api::cast_channel::CastMessage& dest_msg) const;
 
     std::unique_ptr<socketwrapper::SSLTCPSocket> m_sock_ptr;
 
