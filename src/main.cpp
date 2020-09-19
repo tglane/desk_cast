@@ -66,19 +66,12 @@ void main_mdns()
     devices.reserve(responses.size());
     for(const auto& it : responses)
     {
-        devices.emplace_back(it);
+        cast_device& dev = devices.emplace_back(it, SSL_CERT, SSL_KEY);
+
+        if(!dev.connect())
+            continue;
     }
 
-    // for(const auto& dev : devices)
-    // {
-    //     socketwrapper::SSLTCPSocket conn(AF_INET, "/etc/ssl/certs/cert.pem", "/etc/ssl/private/key.pem");
-    //     try {
-    //         conn.connect(dev.port, dev.ip);
-    //     } catch(std::exception& e) {
-    //         std::cout << "Not connected" << std::endl;
-    //     }
-    //     std::cout << "Connected" << std::endl;
-    // }
 }
 
 int main()
