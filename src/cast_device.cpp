@@ -81,16 +81,39 @@ bool cast_device::send(const std::string_view nspace, const std::string_view des
 
     msg.set_payload_utf8(payload.data());
 
+    std::cout << "Test 1" << std::endl;
+    uint32_t len = htonl(msg.ByteSize());
+
+    std::unique_ptr<char[]> data = std::make_unique<char[]>(4 + len);
+    std::memcpy(&data[0], &len, sizeof(uint32_t));
+
+    std::cout << "Test 2" << std::endl;    
+    if(!msg.SerializeToArray(&data[4], len))
+        return false;
+    std::cout << "Test 3" << std::endl;
+
+    try {
+        m_sock_ptr->write<char>(data.get(), 4 + len);
+    } catch(std::exception& e) {
+        return false;
+    }
+
+    std::cout << "Test 4" << std::endl;
     return true;
 }
 
 bool cast_device::receive(CastMessage& dest_msg) const
 {
-    std::unique_ptr<char[]> pkglen = m_sock_ptr->read<char>(4);
+    size_t bytes;
+    std::unique_ptr<char[]> pkglen = m_sock_ptr->read<char>(4, &bytes);
     uint32_t len = ntohl(*reinterpret_cast<uint32_t*>(pkglen.get()));
-    std::cout << "PKGLEN: " << len << std::endl;
 
-    std::unique_ptr<char[]> msg_buf = m_sock_ptr->read<char>(len);
+    std::unique_ptr<char[]> msg_buf;
+    try {
+        msg_buf = m_sock_ptr->read<char>(len);
+    } catch(std::exception& e) {
+        return false;
+    }
     
     if(!dest_msg.ParseFromArray(msg_buf.get(), len))
         return false;
