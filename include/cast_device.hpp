@@ -16,7 +16,7 @@ public:
     cast_device() = delete;
     cast_device(const cast_device&) = delete;
     cast_device(cast_device&&) = default;
-    ~cast_device() = default;
+    ~cast_device();
 
     cast_device(const mdns::mdns_res& res, const char* ssl_cert, const char* ssl_key);
     
@@ -28,7 +28,9 @@ private:
 
     bool receive(extensions::core_api::cast_channel::CastMessage& dest_msg) const;
 
-    std::unique_ptr<socketwrapper::SSLTCPSocket> m_sock_ptr;
+    socketwrapper::SSLTCPSocket m_sock_ptr;
+
+    bool m_connected = false;
 
     std::string m_name;                           // From PTR record
 
