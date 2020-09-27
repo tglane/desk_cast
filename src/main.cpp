@@ -61,7 +61,7 @@ void main_mdns()
     
     if(responses.size() == 0)
         return;
-
+    
     std::vector<cast_device> devices;
     devices.reserve(responses.size());
     for(const auto& it : responses)
