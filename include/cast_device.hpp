@@ -4,6 +4,8 @@
 #include <memory>
 #include <string>
 #include <map>
+#include <future>
+#include <atomic>
 
 #include <socketwrapper/SSLTCPSocket.hpp>
 #include "../protos/cast_channel.pb.h"
@@ -15,12 +17,14 @@ public:
 
     cast_device() = delete;
     cast_device(const cast_device&) = delete;
-    cast_device(cast_device&&) = default;
-    ~cast_device() = default;
+    cast_device(cast_device&& other);
+    ~cast_device();
 
     cast_device(const mdns::mdns_res& res, const char* ssl_cert, const char* ssl_key);
     
     bool connect();
+
+    bool disonnect();
 
 private:
 
@@ -29,6 +33,10 @@ private:
     bool receive(extensions::core_api::cast_channel::CastMessage& dest_msg) const;
 
     std::unique_ptr<socketwrapper::SSLTCPSocket> m_sock_ptr;
+
+    std::atomic<bool> m_connected = ATOMIC_VAR_INIT(false);
+
+    std::future<void> m_heartbeat;
 
     std::string m_name;                           // From PTR record
 

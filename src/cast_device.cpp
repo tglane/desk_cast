@@ -1,11 +1,18 @@
 #include <cast_device.hpp>
 
+#include <thread>
+#include <chrono>
 #include <iostream>
 
 using extensions::core_api::cast_channel::CastMessage;
 
 const char* source_id = "sender-0";
 const char* receiver_id = "receiver-0";
+
+const char* namespace_connection = "urn:x-cast:com.google.cast.tp.connection";
+const char* namespace_heartbeat = "urn:x-cast:com.google.cast.tp.heartbeat";
+const char* namespace_receiver = "urn:x-cast:com.google.cast.receiver";
+const char* namespace_auth = "urn:x-cast:com.google.cast.tp.deviceauth";
 
 cast_device::cast_device(const mdns::mdns_res& res, const char* ssl_cert, const char* ssl_key)
     : m_sock_ptr(std::make_unique<socketwrapper::SSLTCPSocket>(AF_INET, ssl_cert, ssl_key))
@@ -45,28 +52,90 @@ cast_device::cast_device(const mdns::mdns_res& res, const char* ssl_cert, const 
     }
 }
 
+cast_device::cast_device(cast_device&& other)
+    : m_sock_ptr(std::move(other.m_sock_ptr)), m_heartbeat(std::move(other.m_heartbeat)), m_connected(other.m_connected.load()),
+      m_name(std::move(other.m_name)), m_target(std::move(other.m_target)), m_ip(std::move(other.m_ip)), 
+      m_txt(std::move(other.m_txt))
+{
+    other.m_connected.exchange(false);
+    other.m_request_id = 0;
+    other.m_port = 0;
+}
+
+cast_device::~cast_device()
+{
+    if(m_connected.load())
+    {
+        send(namespace_connection, "", 
+            R"({ "type": "CLOSE"})");
+        
+        m_heartbeat.get();
+        m_connected.exchange(false);
+    }
+}
+
 bool cast_device::connect()
 {
+    if(m_connected.load())
+        return false;
+
     try {
         m_sock_ptr->connect(m_port, m_ip);
     } catch(socketwrapper::SocketConnectingException& e) {
         return false;
     }
 
-    this->send("urn:x-cast:com.google.cast.tp.connection", "", 
+    this->send(namespace_connection, "", 
         R"({ "type": "CONNECT" })");
 
-    this->send("urn:x-cast:com.google.cast.receiver", "", 
+    this->send(namespace_receiver, "", 
         R"({ "type": "GET_STATUS", "requestId": 0 })");
 
     CastMessage msg;
     if(!this->receive(msg))
         return false;
     
+    m_connected.exchange(true);
+    
     std::cout << "[DEBUG]: " << msg.namespace_() << std::endl;
     std::cout << "[DEBUG]: " << msg.payload_type() << std::endl;
     std::cout << "[DEBUG]: " << msg.payload_utf8() << std::endl;
+    std::cout << "----------" << std::endl;
 
+    m_heartbeat = std::async(std::launch::async, [this]() -> void
+    {
+        while(this->m_connected.load())
+        {
+            this->send(namespace_heartbeat, "", R"({ "type": "PING" })");
+            CastMessage msg;
+            if(!this->receive(msg))
+                continue;
+
+            if(msg.payload_type() != 0 || msg.payload_utf8() != R"({"type":"PONG"})")
+            {
+                if(msg.namespace_() == namespace_connection && msg.payload_type() == 0 &&
+                    msg.payload_utf8() == R"({"type":"CLOSE"})")
+                    this->m_connected.exchange(false);
+                    continue;
+            }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+        }
+    });
+
+    while(true)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+    return true;
+}
+
+bool cast_device::disonnect()
+{
+    if(!m_connected.load() || 
+        !send(namespace_connection, "", R"({"type": "CLOSE"})"))
+        return false;
+
+    m_connected.exchange(false);
     return true;
 }
 
