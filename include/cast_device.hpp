@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <map>
 #include <future>
 #include <atomic>
@@ -30,7 +31,7 @@ public:
 
     bool disonnect();
 
-    bool launch_app(std::string_view appId);
+    bool launch_app(std::string_view app_id);
 
 private:
 
@@ -38,12 +39,14 @@ private:
 
     bool send_json(const std::string_view nspace, const std::string_view dest_id, json payload) const
     {
-        send(nspace, dest_id, payload.dump());
+        return send(nspace, dest_id, payload.dump());
     }
 
     bool receive(CastMessage& dest_msg) const;
 
     bool receive_payload(json& dest_payload) const;
+
+
 
     std::unique_ptr<socketwrapper::SSLTCPSocket> m_sock_ptr;
 

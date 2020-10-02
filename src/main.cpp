@@ -70,6 +70,8 @@ void main_mdns()
 
         if(!dev.connect())
             continue;
+
+        dev.launch_app("CC1AD845");
     }
 
 }

@@ -106,19 +106,19 @@ bool cast_device::connect()
         {
             this->send(namespace_heartbeat, "", R"({ "type": "PING" })");
 
-            CastMessage msg;
-            if(!this->receive(msg))
-                continue;
+            // CastMessage msg;
+            // if(!this->receive(msg))
+            //     continue;
 
-            if(msg.payload_type() != 0 || msg.payload_utf8() != R"({"type":"PONG"})")
-            {
-                if(msg.namespace_() == namespace_connection && msg.payload_type() == 0 &&
-                    msg.payload_utf8() == R"({"type":"CLOSE"})")
-                    this->m_connected.exchange(false);
-                    continue;
-            }
+            // if(msg.payload_type() != 0 || msg.payload_utf8() != R"({"type":"PONG"})")
+            // {
+            //     if(msg.namespace_() == namespace_connection && msg.payload_type() == 0 &&
+            //         msg.payload_utf8() == R"({"type":"CLOSE"})")
+            //         this->m_connected.exchange(false);
+            //         continue;
+            // }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+            std::this_thread::sleep_for(std::chrono::milliseconds(4500));
         }
     });
 
@@ -138,9 +138,33 @@ bool cast_device::disonnect()
     return true;
 }
 
-bool cast_device::launch_app(const std::string_view appId)
+bool cast_device::launch_app(const std::string_view app_id)
 {
     // TODO
+    if(!m_connected.load())
+        return false;
+
+    json j_send = R"({ "type": "GET_APP_AVAILABILITY" })"_json;
+    j_send["appId"] = { app_id };
+    j_send["requestId"] = ++m_request_id;
+    send_json(namespace_receiver, "", j_send);
+
+    json j_recv;
+    if(!receive_payload(j_recv) || j_recv["responseType"] != "GET_APP_AVAILABILITY" ||
+        j_recv["availability"][app_id.data()] != "APP_AVAILABLE")
+        return false;
+    
+    j_send["type"] = "LAUNCH";
+    j_send["appId"] = app_id;
+    j_send["requestId"] = ++m_request_id;
+    send_json(namespace_receiver, "", j_send);
+
+    if(!receive_payload(j_recv))
+        return false;
+
+    std::cout << "Receive: " << j_recv.dump(2) << std::endl;
+
+    return true;
 }
 
 bool cast_device::send(const std::string_view nspace, const std::string_view dest_id, std::string_view payload) const
@@ -185,6 +209,10 @@ bool cast_device::receive(CastMessage& dest_msg) const
     
     if(!dest_msg.ParseFromArray(msg_buf.get(), len))
         return false;
+
+    // Ignore all PONG receives TEMPORARY 
+    if(dest_msg.namespace_() == namespace_heartbeat)
+        receive(dest_msg);
     
     return true;
 }
