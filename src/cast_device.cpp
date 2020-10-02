@@ -4,8 +4,6 @@
 #include <chrono>
 #include <iostream>
 
-using extensions::core_api::cast_channel::CastMessage;
-
 const char* source_id = "sender-0";
 const char* receiver_id = "receiver-0";
 
@@ -107,6 +105,7 @@ bool cast_device::connect()
         while(this->m_connected.load())
         {
             this->send(namespace_heartbeat, "", R"({ "type": "PING" })");
+
             CastMessage msg;
             if(!this->receive(msg))
                 continue;
@@ -123,8 +122,8 @@ bool cast_device::connect()
         }
     });
 
-    while(true)
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    // while(m_connected.load())
+    //     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
     return true;
 }
@@ -137,6 +136,11 @@ bool cast_device::disonnect()
 
     m_connected.exchange(false);
     return true;
+}
+
+bool cast_device::launch_app(const std::string_view appId)
+{
+    // TODO
 }
 
 bool cast_device::send(const std::string_view nspace, const std::string_view dest_id, std::string_view payload) const
@@ -163,7 +167,6 @@ bool cast_device::send(const std::string_view nspace, const std::string_view des
         return false;
     }
 
-    std::cout << "sent" << std::endl;
     return true;
 }
 
@@ -183,5 +186,18 @@ bool cast_device::receive(CastMessage& dest_msg) const
     if(!dest_msg.ParseFromArray(msg_buf.get(), len))
         return false;
     
+    return true;
+}
+
+bool cast_device::receive_payload(json& dest_payload) const
+{
+    CastMessage msg;
+    if(!receive(msg))
+        return false;
+
+    if(msg.payload_type() != 0)
+        return false;
+
+    dest_payload = json::parse(msg.payload_utf8());
     return true;
 }

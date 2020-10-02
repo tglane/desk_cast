@@ -7,9 +7,13 @@
 #include <future>
 #include <atomic>
 
-#include <socketwrapper/SSLTCPSocket.hpp>
 #include "../protos/cast_channel.pb.h"
+#include <socketwrapper/SSLTCPSocket.hpp>
+#include <json.hpp>
 #include <mdns_discovery.hpp>
+
+using extensions::core_api::cast_channel::CastMessage;
+using nlohmann::json;
 
 class cast_device
 {
@@ -26,11 +30,20 @@ public:
 
     bool disonnect();
 
+    bool launch_app(std::string_view appId);
+
 private:
 
     bool send(const std::string_view nspace, const std::string_view dest_id, std::string_view payload) const;
 
-    bool receive(extensions::core_api::cast_channel::CastMessage& dest_msg) const;
+    bool send_json(const std::string_view nspace, const std::string_view dest_id, json payload) const
+    {
+        send(nspace, dest_id, payload.dump());
+    }
+
+    bool receive(CastMessage& dest_msg) const;
+
+    bool receive_payload(json& dest_payload) const;
 
     std::unique_ptr<socketwrapper::SSLTCPSocket> m_sock_ptr;
 
