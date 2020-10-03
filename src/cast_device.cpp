@@ -64,11 +64,9 @@ cast_device::~cast_device()
 {
     if(m_connected.load())
     {
-        send(namespace_connection, "", 
-            R"({ "type": "CLOSE"})");
-        
-        m_heartbeat.get();
         m_connected.exchange(false);
+        m_heartbeat.get();
+        send(namespace_connection, "", R"({ "type": "CLOSE"})");
     }
 }
 
@@ -95,11 +93,7 @@ bool cast_device::connect()
     
     m_connected.exchange(true);
     
-    std::cout << "[DEBUG]: " << msg.namespace_() << std::endl;
-    std::cout << "[DEBUG]: " << msg.payload_type() << std::endl;
-    std::cout << "[DEBUG]: " << msg.payload_utf8() << std::endl;
-    std::cout << "----------" << std::endl;
-
+    // Launch the heartbeat signal to keep the connection alive
     m_heartbeat = std::async(std::launch::async, [this]() -> void
     {
         while(this->m_connected.load())
@@ -122,9 +116,6 @@ bool cast_device::connect()
         }
     });
 
-    // while(m_connected.load())
-    //     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
     return true;
 }
 
@@ -140,7 +131,6 @@ bool cast_device::disonnect()
 
 bool cast_device::launch_app(const std::string_view app_id)
 {
-    // TODO
     if(!m_connected.load())
         return false;
 
@@ -161,10 +151,40 @@ bool cast_device::launch_app(const std::string_view app_id)
 
     if(!receive_payload(j_recv))
         return false;
+    
+    // Wait until the chromecast has launched the app succesfully to receive its status
+    j_send.erase("appId");
+    int poll_it = 0;
+    while(true)
+    {
+        if(poll_it >= 20)
+            return false;
 
-    std::cout << "Receive: " << j_recv.dump(2) << std::endl;
+        j_send["type"] = "GET_STATUS";
+        j_send["requestId"] = ++m_request_id;
+        send_json(namespace_receiver, "", j_send);
 
-    return true;
+        if(receive_payload(j_recv) && j_recv.contains("status") && 
+            j_recv["status"].contains("applications"))
+            break;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        poll_it++;
+    }
+
+    // Find the application in the response abject
+    for(const auto& it : j_recv["status"]["applications"])
+    {
+        if(it["appId"] != app_id)
+            continue;
+
+        auto app_data = it;
+        std::cout << app_data << std::endl;
+        // TODO parse app data and create interface to interact with the app
+        return true;
+    }
+
+    return false;
 }
 
 bool cast_device::send(const std::string_view nspace, const std::string_view dest_id, std::string_view payload) const
