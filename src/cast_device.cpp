@@ -7,10 +7,13 @@
 const char* source_id = "sender-0";
 const char* receiver_id = "receiver-0";
 
-const char* namespace_connection = "urn:x-cast:com.google.cast.tp.connection";
-const char* namespace_heartbeat = "urn:x-cast:com.google.cast.tp.heartbeat";
-const char* namespace_receiver = "urn:x-cast:com.google.cast.receiver";
-const char* namespace_auth = "urn:x-cast:com.google.cast.tp.deviceauth";
+static const char* namespace_connection = "urn:x-cast:com.google.cast.tp.connection";
+static const char* namespace_heartbeat = "urn:x-cast:com.google.cast.tp.heartbeat";
+static const char* namespace_receiver = "urn:x-cast:com.google.cast.receiver";
+static const char* namespace_auth = "urn:x-cast:com.google.cast.tp.deviceauth";
+
+namespace googlecast
+{
 
 cast_device::cast_device(const mdns::mdns_res& res, const char* ssl_cert, const char* ssl_key)
     : m_sock_ptr(std::make_unique<socketwrapper::SSLTCPSocket>(AF_INET, ssl_cert, ssl_key))
@@ -173,14 +176,21 @@ bool cast_device::launch_app(const std::string_view app_id)
     }
 
     // Find the application in the response abject
-    for(const auto& it : j_recv["status"]["applications"])
+    for(const auto& app_data : j_recv["status"]["applications"])
     {
-        if(it["appId"] != app_id)
+        if(app_data["appId"] != app_id)
             continue;
 
-        auto app_data = it;
-        std::cout << app_data << std::endl;
+        std::cout << "[DEBUG]: " << app_data << std::endl;
+
         // TODO parse app data and create interface to interact with the app
+        cast_app app { 
+            app_data["id"],  
+            app_data["transportId"],
+            app_data["sessionId"],
+            app_data["namespaces"]
+        };
+
         return true;
     }
 
@@ -249,3 +259,5 @@ bool cast_device::receive_payload(json& dest_payload) const
     dest_payload = json::parse(msg.payload_utf8());
     return true;
 }
+
+} // namespace googlecast

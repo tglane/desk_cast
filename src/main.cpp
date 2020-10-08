@@ -62,11 +62,11 @@ void main_mdns()
     if(responses.size() == 0)
         return;
     
-    std::vector<cast_device> devices;
+    std::vector<googlecast::cast_device> devices;
     devices.reserve(responses.size());
     for(const auto& it : responses)
     {
-        cast_device& dev = devices.emplace_back(it, SSL_CERT, SSL_KEY);
+        googlecast::cast_device& dev = devices.emplace_back(it, SSL_CERT, SSL_KEY);
 
         if(!dev.connect())
             continue;

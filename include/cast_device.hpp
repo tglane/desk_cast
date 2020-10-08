@@ -12,9 +12,13 @@
 #include <socketwrapper/SSLTCPSocket.hpp>
 #include <json.hpp>
 #include <mdns_discovery.hpp>
+#include <cast_app.hpp>
 
 using extensions::core_api::cast_channel::CastMessage;
 using nlohmann::json;
+
+namespace googlecast
+{
 
 class cast_device
 {
@@ -65,7 +69,9 @@ private:
     std::map<std::string, std::string> m_txt;     // From TXT record
 
     uint64_t m_request_id = 0;
-
+    
 };
+
+} // namespace googlecast
 
 #endif
