@@ -184,12 +184,12 @@ bool cast_device::launch_app(const std::string_view app_id)
         std::cout << "[DEBUG]: " << app_data << std::endl;
 
         // TODO parse app data and create interface to interact with the app
-        cast_app app { 
-            app_data["id"],  
-            app_data["transportId"],
-            app_data["sessionId"],
-            app_data["namespaces"]
-        };
+        // cast_app app { 
+        //     app_data["id"],  
+        //     app_data["transportId"],
+        //     app_data["sessionId"],
+        //     app_data["namespaces"]
+        // };
 
         return true;
     }

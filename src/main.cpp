@@ -64,15 +64,23 @@ void main_mdns()
     
     std::vector<googlecast::cast_device> devices;
     devices.reserve(responses.size());
-    for(const auto& it : responses)
+    uint32_t select;
+    for(size_t i = 0; i < responses.size(); i++)
     {
-        googlecast::cast_device& dev = devices.emplace_back(it, SSL_CERT, SSL_KEY);
-
-        if(!dev.connect())
-            continue;
-
-        dev.launch_app("CC1AD845");
+        googlecast::cast_device& dev = devices.emplace_back(responses[i], SSL_CERT, SSL_KEY);
+        std::cout << i << " | " << dev.get_name() << '\n';
     }
+    std::cout << "\nSelect the device you want to connect to:\n>>";
+    std::cin >> select;
+
+    if(0 > select || select >= devices.size())
+        select = 0; // Default is 0
+
+    googlecast::cast_device& dev = devices[select];
+    if(!dev.connect())
+        return;
+    
+    dev.launch_app("CC1AD845");
 
 }
 

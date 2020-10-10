@@ -37,6 +37,11 @@ public:
 
     bool launch_app(std::string_view app_id);
 
+    const std::string& get_name() const
+    {
+        return m_name;
+    }
+
 private:
 
     bool send(const std::string_view nspace, const std::string_view dest_id, std::string_view payload) const;
