@@ -29,7 +29,9 @@ public:
 
     cast_device() = delete;
     cast_device(const cast_device&) = delete;
+    cast_device& operator=(const cast_device&) = delete;
     cast_device(cast_device&& other);
+    cast_device& operator=(cast_device&& other) = default;
     ~cast_device();
 
     cast_device(const mdns::mdns_res& res, const char* ssl_cert, const char* ssl_key);
@@ -40,7 +42,7 @@ public:
 
     bool launch_app(std::string_view app_id);
 
-    const std::string& get_name() const
+    inline const std::string& get_name() const
     {
         return m_name;
     }
@@ -56,31 +58,27 @@ private:
 
     json read(uint32_t request_id) const;
 
-    bool receive(CastMessage& dest_msg) const;
 
-    bool receive_payload(json& dest_payload) const;
+    std::future<void> m_heartbeat;                  // Future to store async function sending a heartbeat signal
 
-
-    std::future<void> m_heartbeat;
-
-    std::unique_ptr<receiver> m_receiver;
+    std::unique_ptr<receiver> m_receiver;           // Utility class to wait for responses of the connected cast device
 
 
     std::shared_ptr<socketwrapper::SSLTCPSocket> m_sock_ptr;
 
     std::atomic<bool> m_connected = ATOMIC_VAR_INIT(false);
 
-    std::string m_name;                           // From PTR record
+    std::string m_name;                             // From PTR record
 
-    std::string m_target;                         // From SRV record
+    std::string m_target;                           // From SRV record
 
-    uint32_t m_port;                              // From SRV record
+    uint32_t m_port;                                // From SRV record
 
-    std::string m_ip;                             // From A record
+    std::string m_ip;                               // From A record
 
-    std::map<std::string, std::string> m_txt;     // From TXT record
+    std::map<std::string, std::string> m_txt;       // From TXT record
 
-    uint64_t m_request_id = 0;
+    uint64_t m_request_id = 0;                      // Up counting id to identify requests and responses
     
 };
 

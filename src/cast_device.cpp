@@ -342,40 +342,4 @@ json cast_device::read(uint32_t request_id) const
     }
 }
 
-bool cast_device::receive(CastMessage& dest_msg) const
-{
-    size_t bytes;
-    std::unique_ptr<char[]> pkglen = m_sock_ptr->read<char>(4, &bytes);
-    uint32_t len = ntohl(*reinterpret_cast<uint32_t*>(pkglen.get()));
-
-    std::unique_ptr<char[]> msg_buf;
-    try {
-        msg_buf = m_sock_ptr->read<char>(len);
-    } catch(socketwrapper::SocketReadException& e) {
-        return false;
-    }
-    
-    if(!dest_msg.ParseFromArray(msg_buf.get(), len))
-        return false;
-
-    // Ignore all PONG receives TEMPORARY 
-    if(dest_msg.namespace_() == namespace_heartbeat)
-        receive(dest_msg);
-    
-    return true;
-}
-
-bool cast_device::receive_payload(json& dest_payload) const
-{
-    CastMessage msg;
-    if(!receive(msg))
-        return false;
-
-    if(msg.payload_type() != 0)
-        return false;
-
-    dest_payload = json::parse(msg.payload_utf8());
-    return true;
-}
-
 } // namespace googlecast
