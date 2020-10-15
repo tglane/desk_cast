@@ -56,6 +56,7 @@ void main_mdns()
 {
     using namespace mdns;
 
+    std::cout << "Searching for casteable devices in your local network...\n";
     std::vector<mdns_res> responses = mdns_discovery("_googlecast._tcp.local");
     std::cout << "Received " << responses.size() << " responses from potential googlecast devices.\n";
     
@@ -70,7 +71,7 @@ void main_mdns()
         googlecast::cast_device& dev = devices.emplace_back(responses[i], SSL_CERT, SSL_KEY);
         std::cout << i << " | " << dev.get_name() << '\n';
     }
-    std::cout << "\nSelect the device you want to connect to:\n>>";
+    std::cout << "\nSelect the device you want to connect to:\n>> ";
     std::cin >> select;
 
     if(0 > select || select >= devices.size())

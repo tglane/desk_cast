@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 #include <map>
+#include <deque>
 #include <future>
 #include <atomic>
 
@@ -19,6 +20,8 @@ using nlohmann::json;
 
 namespace googlecast
 {
+
+class receiver;
 
 class cast_device
 {
@@ -44,24 +47,28 @@ public:
 
 private:
 
-    bool send(const std::string_view nspace, const std::string_view dest_id, std::string_view payload) const;
+    bool send(const std::string_view nspace, std::string_view payload, const std::string_view dest_id = "receiver-0") const;
 
-    bool send_json(const std::string_view nspace, const std::string_view dest_id, json payload) const
+    bool send_json(const std::string_view nspace, json payload, const std::string_view dest_id = "receiver-0") const
     {
-        return send(nspace, dest_id, payload.dump());
+        return send(nspace, payload.dump(), dest_id);
     }
+
+    json read(uint32_t request_id) const;
 
     bool receive(CastMessage& dest_msg) const;
 
     bool receive_payload(json& dest_payload) const;
 
 
+    std::future<void> m_heartbeat;
 
-    std::unique_ptr<socketwrapper::SSLTCPSocket> m_sock_ptr;
+    std::unique_ptr<receiver> m_receiver;
+
+
+    std::shared_ptr<socketwrapper::SSLTCPSocket> m_sock_ptr;
 
     std::atomic<bool> m_connected = ATOMIC_VAR_INIT(false);
-
-    std::future<void> m_heartbeat;
 
     std::string m_name;                           // From PTR record
 
