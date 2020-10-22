@@ -40,7 +40,22 @@ public:
 
     bool disonnect();
 
-    bool launch_app(std::string_view app_id);
+    cast_app& launch_app(const std::string& app_id);
+
+    void close_app();
+
+    /// TODO
+    bool volume_up();
+    bool volume_down();
+    bool toggle_mute();
+    ///
+
+    json get_status() const;
+
+    inline cast_app& get_app() const
+    {
+        return *m_active_app;
+    }
 
     inline const std::string& get_name() const
     {
@@ -63,6 +78,7 @@ private:
 
     std::unique_ptr<receiver> m_receiver;           // Utility class to wait for responses of the connected cast device
 
+    std::unique_ptr<cast_app> m_active_app;
 
     std::shared_ptr<socketwrapper::SSLTCPSocket> m_sock_ptr;
 
@@ -78,8 +94,9 @@ private:
 
     std::map<std::string, std::string> m_txt;       // From TXT record
 
-    uint64_t m_request_id = 0;                      // Up counting id to identify requests and responses
-    
+    mutable uint64_t m_request_id = 0;              // Up counting id to identify requests and responses
+
+    friend class cast_app;
 };
 
 } // namespace googlecast

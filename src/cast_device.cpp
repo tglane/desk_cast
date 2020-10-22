@@ -2,6 +2,7 @@
 
 #include <thread>
 #include <chrono>
+#include <utility>
 #include <iostream>
 
 const char* source_id = "sender-0";
@@ -10,7 +11,6 @@ const char* receiver_id = "receiver-0";
 static const char* namespace_connection = "urn:x-cast:com.google.cast.tp.connection";
 static const char* namespace_heartbeat = "urn:x-cast:com.google.cast.tp.heartbeat";
 static const char* namespace_receiver = "urn:x-cast:com.google.cast.receiver";
-static const char* namespace_media = "urn:x-cast:com.google.cast.media";
 static const char* namespace_auth = "urn:x-cast:com.google.cast.tp.deviceauth";
 
 namespace googlecast
@@ -72,7 +72,6 @@ public:
 
                             if(payload.contains("requestId") && payload["requestId"].is_number())
                             {
-                                std::cout << "[RECEIVE]: " << payload["requestId"] << std::endl;
                                 this->m_msg_store.insert({ payload["requestId"], msg });
                             }
                         } catch(nlohmann::json::parse_error&) {}
@@ -92,8 +91,6 @@ public:
 
     bool get_msg(uint64_t request_id, CastMessage& dest_msg)
     {
-        std::cout << "[GET]: " << request_id << std::endl;
-
         auto it = m_msg_store.find(request_id);
         if(it == m_msg_store.end())
             return false;
@@ -223,10 +220,10 @@ bool cast_device::disonnect()
     return true;
 }
 
-bool cast_device::launch_app(const std::string_view app_id)
+cast_app& cast_device::launch_app(const std::string& app_id)
 {
     if(!m_connected.load())
-        return false;
+        throw std::runtime_error("Not connected");
 
     json j_send, j_recv;
 
@@ -236,13 +233,9 @@ bool cast_device::launch_app(const std::string_view app_id)
     send_json(namespace_receiver, j_send);
 
     j_recv = read(m_request_id);
-    std::cout << "req_id: " << m_request_id << std::endl;
-    
     if(j_recv.empty() || j_recv["responseType"] != "GET_APP_AVAILABILITY" ||
         j_recv["availability"][app_id.data()] != "APP_AVAILABLE")
-        return false;
-
-    std::cout << "After" << std::endl;
+        throw std::runtime_error("App not available");
 
     j_send["type"] = "LAUNCH";
     j_send["appId"] = app_id;
@@ -260,41 +253,58 @@ bool cast_device::launch_app(const std::string_view app_id)
     while(true)
     {
         if(poll_it >= 20)
-            return false;
+            throw std::runtime_error("Could not bring up app");
 
         j_send["type"] = "GET_STATUS";
         j_send["requestId"] = ++m_request_id;
         send_json(namespace_receiver, j_send);
 
         j_recv = read(m_request_id);
-        if(!j_recv.empty() && j_recv.contains("status") && 
-            j_recv["status"].contains("applications"))
-            break;
+        if(j_recv.empty() || !j_recv.contains("status") || !j_recv["status"].contains("applications"))
+            continue;
+
+        // Find app to launch in the response
+        for(const auto& app_data : j_recv["status"]["applications"])
+        {
+            if(app_data["appId"] != app_id)
+                continue;
+
+            // Found the application we want to launch
+            if(m_active_app)
+                close_app();
+
+            m_active_app = std::make_unique<cast_app>(this, app_data["appId"], app_data["sessionId"],
+                app_data["transportId"], app_data["namespaces"]);
+            send(namespace_connection, R"({"type":"CONNECT"})", m_active_app->m_transport_id);
+            return *m_active_app;
+        }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         poll_it++;
     }
 
-    // Find the application in the response abject
-    for(const auto& app_data : j_recv["status"]["applications"])
+    // TODO on cold start it brekas the while loop immediately and goes to this point ...
+    throw std::runtime_error("App not launched");
+}
+
+void cast_device::close_app()
+{
+    if(m_active_app)
     {
-        if(app_data["appId"] != app_id)
-            continue;
-
-        std::cout << "[DEBUG]: " << app_data << std::endl;
-
-        // TODO parse app data and create interface to interact with the app
-        // cast_app app { 
-        //     app_data["id"],  
-        //     app_data["transportId"],
-        //     app_data["sessionId"],
-        //     app_data["namespaces"]
-        // };
-
-        return true;
+        send(namespace_connection, R"({ "type": "CLOSE" })", m_active_app->m_transport_id);
+        m_active_app.release();
     }
+}
 
-    return false;
+json cast_device::get_status() const
+{
+    if(!m_connected.load())
+        return {};
+    
+    json obj = json::parse(R"({ "type": "GET_STATUS" })");
+    obj["requestId"] = ++m_request_id;
+    send_json(namespace_receiver, obj);
+    return read(m_request_id);
 }
 
 bool cast_device::send(const std::string_view nspace, std::string_view payload, const std::string_view dest_id) const
@@ -326,13 +336,15 @@ bool cast_device::send(const std::string_view nspace, std::string_view payload, 
 
 json cast_device::read(uint32_t request_id) const
 {
+    uint8_t steps = 0;
     CastMessage msg;
-    // m_receiver->get_msg(request_id, msg)
-    if(!m_receiver->get_msg(request_id, msg))
+    while(!m_receiver->get_msg(request_id, msg))
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        if(!m_receiver->get_msg(request_id, msg))
+        if(steps >= 5)
             return {}; // Return empty json if there is no message
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        steps++;
     }
 
     try {

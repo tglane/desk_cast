@@ -8,6 +8,7 @@
 #include <dial_discovery.hpp>
 #include <mdns_discovery.hpp>
 #include <cast_device.hpp>
+#include <cast_app.hpp>
 
 #define SSL_CERT "/etc/ssl/certs/cert.pem"
 #define SSL_KEY "/etc/ssl/private/key.pem"
@@ -78,10 +79,31 @@ void main_mdns()
         select = 0; // Default is 0
 
     googlecast::cast_device& dev = devices[select];
+    dev.close_app();
     if(!dev.connect())
         return;
-    
-    dev.launch_app("CC1AD845");
+
+    googlecast::cast_app* app;
+    try {
+        app = &(dev.launch_app("CC1AD845"));
+    } catch(std::runtime_error& e) {
+        std::cout << "[ERROR_LAUNCH_APP]:\n" << e.what() << std::endl;
+        return;
+    } catch(...) {
+        std::cout << "..." << std::endl;
+        return;
+    }
+
+    app->run();
+
+    // JUST TO CHECK THE CONNECTION
+    // uint64_t cnt = 0;
+    // while(1)
+    // {
+    //     std::cout << dev.get_status().dump(2) << "\n--------------------------------------" << cnt << '\n' << std::endl;
+    //     cnt++;
+    //     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    // }
 
 }
 
