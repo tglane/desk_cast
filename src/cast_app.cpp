@@ -16,24 +16,33 @@ cast_app::cast_app(cast_device* device, const std::string& app_id, const std::st
 
 bool cast_app::run() const
 {
+    uint64_t req_id = ++(m_device->m_request_id);
     json obj;
-    obj["currentTime"] = 0;
-    obj["autoplay"] = true;
     obj["media"]["contentId"] = "https://kinsta.com/de/wp-content/uploads/sites/5/2019/09/jpg-vs-jpeg-1024x512.jpg";
     obj["media"]["contentType"] = "image/jpeg";
-    obj["media"]["metadata"]["title"] = "Screen Share";
-    obj["streamType"] = "OTHER";
-    obj["requestId"] = ++(m_device->m_request_id);
+    obj["media"]["streamType"] = "NONE";
+    // obj["media"]["contentId"] = "http://techslides.com/demos/sample-videos/small.mp4";
+    // obj["media"]["contentType"] = "video/mp4";
+    // obj["media"]["streamType"] = "BUFFERED";
+    obj["type"] = "LOAD";
+    obj["requestId"] = req_id;
 
     m_device->send_json(namespace_media, obj, m_transport_id);
 
     // Takes time to launch the app on older devices so lets wait a bit here
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    json recv = m_device->read(m_device->m_request_id);
-    if(recv.empty())
+    json recv;
+    uint8_t cnt = 0;
+    while(true)
     {
-        std::cout << "empty response" << std::endl;
-        return false;
+        if(cnt >= 5)
+            return false;
+
+        recv = m_device->read(req_id);
+        if(!recv.empty())
+            break;
+
+        cnt++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
     std::cout << "[APP RECEVICE]\n" << recv.dump(2) << std::endl;

@@ -3,7 +3,6 @@
 #include <thread>
 #include <chrono>
 #include <utility>
-#include <iostream>
 
 const char* source_id = "sender-0";
 const char* receiver_id = "receiver-0";

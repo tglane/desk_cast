@@ -97,13 +97,13 @@ void main_mdns()
     app->run();
 
     // JUST TO CHECK THE CONNECTION
-    // uint64_t cnt = 0;
-    // while(1)
-    // {
-    //     std::cout << dev.get_status().dump(2) << "\n--------------------------------------" << cnt << '\n' << std::endl;
-    //     cnt++;
-    //     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    // }
+    uint64_t cnt = 0;
+    while(1)
+    {
+        std::cout << dev.get_status().dump(2) << "\n--------------------------------------" << cnt << '\n' << std::endl;
+        cnt++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+    }
 
 }
 
