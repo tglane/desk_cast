@@ -13,7 +13,7 @@
 
 #include <iostream>
 
-namespace mdns
+namespace discovery
 {
 
 constexpr uint16_t MDNS_RESPONSE_FLAG = 0x8400;
@@ -250,4 +250,4 @@ void parse_a_record(const mdns_record& rec, std::string& dest_addr)
 
 }
 
-}
+} // namespace discovery

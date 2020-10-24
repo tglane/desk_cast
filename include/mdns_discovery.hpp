@@ -12,7 +12,7 @@
 #define QUERY_PORT 5353
 #define QUERY_TIME 5000
 
-namespace mdns
+namespace discovery
 {
 
 struct mdns_record
@@ -41,6 +41,6 @@ void parse_srv_record(const mdns_record& rec, uint32_t& dest_port, std::string& 
 
 void parse_a_record(const mdns_record& rec, std::string& dest_addr);
 
-}
+} // namespace discovery
 
 #endif

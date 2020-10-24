@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <future>
 
 #include <socketwrapper/UDPSocket.hpp>
 #include <socketwrapper/TCPSocket.hpp>
@@ -10,14 +11,14 @@
 #include <cast_device.hpp>
 #include <cast_app.hpp>
 
+#include <webserver.hpp>
+
 #define SSL_CERT "/etc/ssl/certs/cert.pem"
 #define SSL_KEY "/etc/ssl/private/key.pem"
 
-void main_dial() 
+static void main_dial() 
 {
-    using namespace dial;
-
-    std::vector<ssdp_res> responses = upnp_discovery();
+    std::vector<discovery::ssdp_res> responses = discovery::upnp_discovery();
     for(const auto& it : responses)
     {
         std::cout << "--------------------\n";
@@ -29,7 +30,7 @@ void main_dial()
         std::string path;
         int port;
         try {
-            parse_location(it.at("LOCATION"), addr, path, port);
+            discovery::parse_location(it.at("LOCATION"), addr, path, port);
         } catch(std::exception& e) {
             continue;
         }
@@ -53,12 +54,10 @@ void main_dial()
     }
 }
 
-void main_mdns()
+static void main_mdns()
 {
-    using namespace mdns;
-
     std::cout << "Searching for casteable devices in your local network...\n";
-    std::vector<mdns_res> responses = mdns_discovery("_googlecast._tcp.local");
+    std::vector<discovery::mdns_res> responses = discovery::mdns_discovery("_googlecast._tcp.local");
     std::cout << "Received " << responses.size() << " responses from potential googlecast devices.\n";
     
     if(responses.size() == 0)
@@ -78,38 +77,51 @@ void main_mdns()
     if(0 > select || select >= devices.size())
         select = 0; // Default is 0
 
-    googlecast::cast_device& dev = devices[select];
-    dev.close_app();
-    if(!dev.connect())
-        return;
 
-    googlecast::cast_app* app;
-    try {
-        app = &(dev.launch_app("CC1AD845"));
-    } catch(std::runtime_error& e) {
-        std::cout << "[ERROR_LAUNCH_APP]:\n" << e.what() << std::endl;
-        return;
-    } catch(...) {
-        std::cout << "..." << std::endl;
-        return;
-    }
+    std::future<void> cast_bringup = std::async(std::launch::async, [&devices, select]() {
 
-    app->run();
+        googlecast::cast_device& dev = devices[select];
+        dev.close_app();
+        if(!dev.connect())
+            return;
+
+        try {
+            googlecast::cast_app& app = dev.launch_app("CC1AD845");
+            // TODO If this returns false, the media is not set so exit the execution
+            app.set_media();
+        } catch(std::runtime_error& e) {
+            std::cout << "[ERROR_LAUNCH_APP]:\n" << e.what() << std::endl;
+            return;
+        } catch(...) {
+            std::cout << "..." << std::endl;
+            return;
+        }
+    });
+
+    ssl_webserver server(5770, SSL_CERT, SSL_KEY);
+    server.serve();
 
     // JUST TO CHECK THE CONNECTION
-    uint64_t cnt = 0;
-    while(1)
-    {
-        std::cout << dev.get_status().dump(2) << "\n--------------------------------------" << cnt << '\n' << std::endl;
-        cnt++;
-        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-    }
+    // uint64_t cnt = 0;
+    // while(1)
+    // {
+    //     std::cout << dev.get_status().dump(2) << "\n--------------------------------------" << cnt << '\n' << std::endl;
+    //     cnt++;
+    //     std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+    // }
 
 }
 
 int main()
 {
+    // TODO Split up code
+    // -> Use main_dial/main_mdns to get the device to connect to
+    // -> When we have a device, launch screenrecorder in background thread (not implemented yet) (loop)
+    // -> Launch the app on the selected device in the background
+    // -> Start webserver serving the cast devices in the main thread (loop)
+
     // main_dial();
 
     main_mdns();
+
 }

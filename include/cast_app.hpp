@@ -24,7 +24,7 @@ public:
     cast_app(cast_device* device, const std::string& app_id, const std::string& session_id, 
         const std::string& transport_id, const json& nspaces);
 
-    bool run() const;
+    bool set_media() const;
 
 private:
 

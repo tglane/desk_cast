@@ -9,7 +9,7 @@
 #include <chrono>
 #include <stdexcept>
 
-namespace dial
+namespace discovery
 {
 
 ssdp_res parse_request(std::string_view view)
@@ -78,4 +78,4 @@ std::vector<ssdp_res> upnp_discovery()
     return responses;
 }
 
-}
+} // namespace discovery

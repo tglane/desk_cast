@@ -34,7 +34,7 @@ public:
     cast_device& operator=(cast_device&& other) = default;
     ~cast_device();
 
-    cast_device(const mdns::mdns_res& res, const char* ssl_cert, const char* ssl_key);
+    cast_device(const discovery::mdns_res& res, const char* ssl_cert, const char* ssl_key);
     
     bool connect();
 

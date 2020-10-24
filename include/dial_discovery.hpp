@@ -6,7 +6,7 @@
 #include <vector>
 #include <map>
 
-namespace dial
+namespace discovery
 {
 
 #define DISCOVERY_IP "239.255.255.250"
@@ -22,6 +22,6 @@ void parse_location(const std::string& location, std::string& addr,
 
 std::vector<ssdp_res> upnp_discovery();
 
-}
+} // namespace discovery
 
 #endif

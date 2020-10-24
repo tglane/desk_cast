@@ -115,7 +115,7 @@ private:
 
 
 
-cast_device::cast_device(const mdns::mdns_res& res, const char* ssl_cert, const char* ssl_key)
+cast_device::cast_device(const discovery::mdns_res& res, const char* ssl_cert, const char* ssl_key)
     : m_sock_ptr(std::make_shared<socketwrapper::SSLTCPSocket>(AF_INET, ssl_cert, ssl_key))
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
