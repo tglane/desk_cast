@@ -11,7 +11,7 @@ public:
 
     ssl_webserver(int32_t port, const char* cert_path, const char* key_path);
 
-    void serve();
+    void serve(std::atomic<bool>& run_condition);
 
 private:
 

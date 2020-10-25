@@ -24,8 +24,13 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
     // -> Check if request is from cast device
     // -> Check if it points to a valid endpoint
 
-    while(!conn->bytes_available())
+    size_t wait_cnt = 0;
+    while(!conn->bytes_available() && wait_cnt <= 5)
+    {
+        wait_cnt++;
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
 
     std::unique_ptr<char[]> recv = conn->read_all<char>();
     std::cout << recv.get() << std::endl;
@@ -47,21 +52,19 @@ ssl_webserver::ssl_webserver(int32_t port, const char* cert_path, const char* ke
     m_sock.bind("0.0.0.0", port);
 }
 
-void ssl_webserver::serve()
+void ssl_webserver::serve(std::atomic<bool>& run_condition)
 {
     m_sock.listen(1);
 
-    std::cout << "Webserver serving..." << std::endl;
-    while(true)
+    std::cout << "Webserver serving ...\n";
+    while(run_condition)
     {
-        if(m_sock.bytes_available())
-        {
-            try {
-                // Because this webserver only serves one client, here we dont need
-                // more than one thread handling requests at the moment
-                handle_connection(m_sock.accept());
-            } catch(socketwrapper::SocketAcceptingException&) {}
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        try {
+            // Because this webserver only serves one client, here we dont need
+            // more than one thread handling requests at the moment
+            handle_connection(m_sock.accept());
+        } catch(socketwrapper::SocketAcceptingException&) {}
     }
+
+    std::cout << "Webserver closing" << std::endl;
 }

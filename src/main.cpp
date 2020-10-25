@@ -1,6 +1,7 @@
 #include <iostream>
 #include <memory>
 #include <future>
+#include <signal.h>
 
 #include <socketwrapper/UDPSocket.hpp>
 #include <socketwrapper/TCPSocket.hpp>
@@ -15,6 +16,8 @@
 
 #define SSL_CERT "/etc/ssl/certs/cert.pem"
 #define SSL_KEY "/etc/ssl/private/key.pem"
+
+#define WEBSERVER_PORT 5770
 
 static void main_dial() 
 {
@@ -78,28 +81,22 @@ static void main_mdns()
         select = 0; // Default is 0
 
 
-    std::future<void> cast_bringup = std::async(std::launch::async, [&devices, select]() {
+    googlecast::cast_device& dev = devices[select];
+    dev.close_app();
+    if(!dev.connect())
+        return;
 
-        googlecast::cast_device& dev = devices[select];
-        dev.close_app();
-        if(!dev.connect())
-            return;
-
-        try {
-            googlecast::cast_app& app = dev.launch_app("CC1AD845");
-            // TODO If this returns false, the media is not set so exit the execution
-            app.set_media();
-        } catch(std::runtime_error& e) {
-            std::cout << "[ERROR_LAUNCH_APP]:\n" << e.what() << std::endl;
-            return;
-        } catch(...) {
-            std::cout << "..." << std::endl;
-            return;
-        }
-    });
-
-    ssl_webserver server(5770, SSL_CERT, SSL_KEY);
-    server.serve();
+    try {
+        googlecast::cast_app& app = dev.launch_app("CC1AD845");
+        // TODO If this returns false, the media is not set so exit the execution
+        app.set_media();
+    } catch(std::runtime_error& e) {
+        std::cout << "[ERROR_LAUNCH_APP]:\n" << e.what() << std::endl;
+        return;
+    } catch(...) {
+        std::cout << "..." << std::endl;
+        return;
+    }
 
     // JUST TO CHECK THE CONNECTION
     // uint64_t cnt = 0;
@@ -112,16 +109,62 @@ static void main_mdns()
 
 }
 
+static void init_webserver(std::atomic<bool>& run_condition)
+{
+    ssl_webserver server(WEBSERVER_PORT, SSL_CERT, SSL_KEY);
+    server.serve(run_condition);
+}
+
+static void block_signals(sigset_t* sigset)
+{
+    sigemptyset(sigset);
+    sigaddset(sigset, SIGINT);
+    sigaddset(sigset, SIGTERM);
+    pthread_sigmask(SIG_BLOCK, sigset, nullptr);
+}
+
 int main()
 {
+    sigset_t sigset;
+    std::atomic<bool> run_condition(true);
+    block_signals(&sigset);
+
+    std::future<int> signal_handler = std::async(std::launch::async, [&run_condition, &sigset]()
+    {
+        int signum = 0;
+        sigwait(&sigset, &signum);
+        run_condition.store(false);
+        std::cout << "Shutting down ...\n";
+
+        // TODO Change to async I/O
+        // Quick and dirty to stop waiting for accept in the web server
+        socketwrapper::TCPSocket sock(AF_INET);
+        sock.connect(WEBSERVER_PORT, "127.0.0.1");
+
+        return signum;
+    });
+
     // TODO Split up code
     // -> Use main_dial/main_mdns to get the device to connect to
     // -> When we have a device, launch screenrecorder in background thread (not implemented yet) (loop)
-    // -> Launch the app on the selected device in the background
-    // -> Start webserver serving the cast devices in the main thread (loop)
+    // -> Launch webserver serving the cast devices in background thread (loop)
+    // -> Launch the app on the selected device in main thread
 
-    // main_dial();
 
-    main_mdns();
+    std::vector<std::future<void>> worker;
+    worker.reserve(3);
+    worker.push_back(std::async(std::launch::async, init_webserver, std::ref(run_condition)));
+    // worker.push_back(std::async(std::launch::async, main_dial));
+    worker.push_back(std::async(std::launch::async, main_mdns));
+    // worker.push_back(std::async(std::launch::async, init_capture, std::ref(run_condition)));
 
+    // Wait for signal and shut down all threads
+    int signal = signal_handler.get();
+    for(auto& fut : worker)
+    {
+        fut.get();
+        std::cout << "Worker returned" << std::endl;
+    }
+
+    return EXIT_SUCCESS;
 }
