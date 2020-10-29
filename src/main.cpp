@@ -12,7 +12,7 @@
 #include <cast_device.hpp>
 #include <cast_app.hpp>
 
-#include <webserver.hpp>
+#include <http/webserver.hpp>
 
 #define SSL_CERT "/etc/ssl/certs/cert.pem"
 #define SSL_KEY "/etc/ssl/private/key.pem"
@@ -111,7 +111,7 @@ static void main_mdns()
 
 static void init_webserver(std::atomic<bool>& run_condition)
 {
-    ssl_webserver server(WEBSERVER_PORT, SSL_CERT, SSL_KEY);
+    http::webserver server(WEBSERVER_PORT, SSL_CERT, SSL_KEY);
     server.serve(run_condition);
 }
 
@@ -155,7 +155,7 @@ int main()
     worker.reserve(3);
     worker.push_back(std::async(std::launch::async, init_webserver, std::ref(run_condition)));
     // worker.push_back(std::async(std::launch::async, main_dial));
-    worker.push_back(std::async(std::launch::async, main_mdns));
+    // worker.push_back(std::async(std::launch::async, main_mdns));
     // worker.push_back(std::async(std::launch::async, init_capture, std::ref(run_condition)));
 
     // Wait for signal and shut down all threads

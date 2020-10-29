@@ -20,6 +20,7 @@ public:
     cast_app& operator=(const cast_app&) = delete;
     cast_app(cast_app&&) = delete;
     cast_app& operator=(cast_app&&) = delete;
+    ~cast_app() = default;
 
     cast_app(cast_device* device, const std::string& app_id, const std::string& session_id, 
         const std::string& transport_id, const json& nspaces);

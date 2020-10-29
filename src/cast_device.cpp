@@ -219,6 +219,12 @@ bool cast_device::disonnect()
     return true;
 }
 
+bool cast_device::app_available(std::string_view app_id) const
+{
+    // TODO
+    return true;
+}
+
 cast_app& cast_device::launch_app(const std::string& app_id)
 {
     if(!m_connected.load())

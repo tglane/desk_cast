@@ -8,9 +8,9 @@ LDFLAGS := -L./lib -lsocketwrapper -lpthread -lcrypto -lssl -lprotobuf
 APPNAME = desk_cast
 
 SRCDIR = src
-SRCFILES = $(wildcard $(SRCDIR)/*.cpp)
+SRCFILES = $(wildcard $(SRCDIR)/*.cpp) $(wildcard $(SRCDIR)/*/*.cpp)
 OBJDIR = src
-OBJFILES = $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SRCFILES))
+OBJFILES = ${SRCFILES:.cpp=.o}
 
 PROTODIR = protos
 PROTOFILES = $(wildcard $(PROTODIR)/*.proto)

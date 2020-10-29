@@ -19,12 +19,13 @@ bool cast_app::set_media() const
     uint64_t req_id = ++(m_device->m_request_id);
     json obj;
     // obbj["media"]["contentId"] = "https://kinsta.com/de/wp-content/uploads/sites/5/2019/09/jpg-vs-jpeg-1024x512.jpg";
-    obj["media"]["contentId"] = "http://192.168.178.108:5770/test_image";
-    obj["media"]["contentType"] = "image/jpeg";
-    obj["media"]["streamType"] = "NONE";
-    // obj["media"]["contentId"] = "http://techslides.com/demos/sample-videos/small.mp4";
-    // obj["media"]["contentType"] = "video/mp4";
-    // obj["media"]["streamType"] = "BUFFERED";
+    // obj["media"]["contentId"] = "http://192.168.178.108:5770/test_image";
+    // obj["media"]["contentType"] = "image/jpeg";
+    // obj["media"]["streamType"] = "NONE";
+    obj["media"]["contentId"] = "http://techslides.com/demos/sample-videos/small.mp4";
+    // obj["media"]["contentId"] = "http://192.168.178:5770/test_video";
+    obj["media"]["contentType"] = "video/mp4";
+    obj["media"]["streamType"] = "BUFFERED";
     obj["type"] = "LOAD";
     obj["requestId"] = req_id;
 

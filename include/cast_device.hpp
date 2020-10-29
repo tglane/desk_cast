@@ -40,6 +40,8 @@ public:
 
     bool disonnect();
 
+    bool app_available(std::string_view app_id) const;
+
     cast_app& launch_app(const std::string& app_id);
 
     void close_app();
