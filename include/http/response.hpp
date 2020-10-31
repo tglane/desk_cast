@@ -18,6 +18,9 @@ namespace http
 class response
 {
 public:
+
+    response() = default;
+
     explicit response(const request& req) 
         : m_req(req)
     {}

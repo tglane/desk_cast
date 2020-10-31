@@ -42,13 +42,20 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
     try {
         req.parse(conn->read_all<char>().get());
     } catch(...) {
-        return; // TODO return error response
+        response res;
+        res.set_code(400, "Bad Request");
+        std::string res_str = res.to_string();
+        conn->write<char>(res_str.data(), res_str.size());
+        return;
     }
 
     // Read file
     std::vector<char> img = file_to_binary("./test_data/test_video.mp4");
 
     response res(req);
+    res.set_header("Server", "localhost");
+    res.set_header("Content-Type", "video/mp4");
+
     if(req.check_header("Range"))
     {
         size_t start = 0, end = img.size();
@@ -62,8 +69,6 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
         }
 
         res.set_code(206, "Partial Content");
-        res.set_header("Server", "localhost");
-        res.set_header("Content-Type", "video/mp4");
         res.set_header("Content-Range", "bytes " + std::to_string(start) + '-' + 
             std::to_string(end - start - 1) + '/' + std::to_string(img.size()));
         res.set_body({img.begin() + start, img.begin() + end});
@@ -71,11 +76,16 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
     else
     {
         res.set_code(200);
-        res.set_header("Server", "localhost");
         res.set_header("Accept-Ranges", "bytes");
-        res.set_header("Content-Type", "video/mp4");
         res.set_header("Content-Length", std::to_string(img.size()));
         // res.set_body({img.begin(), img.end()});
+    }
+    
+    // CORS
+    if(req.check_header("Origin"))
+    {
+        res.set_header("Access-Control-Allow-Origin", req.get_header("Origin"));
+        res.set_header("Access-Control-Allow-Methods", "GET");
     }
 
     std::string res_str = res.to_string();
