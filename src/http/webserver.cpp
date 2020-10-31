@@ -66,7 +66,7 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
         res.set_header("Content-Type", "video/mp4");
         res.set_header("Content-Range", "bytes " + std::to_string(start) + '-' + 
             std::to_string(end - start - 1) + '/' + std::to_string(img.size()));
-        res.set_body({img.begin() + start, img.end()});
+        res.set_body({img.begin() + start, img.begin() + end});
     }
     else
     {
