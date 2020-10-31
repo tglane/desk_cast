@@ -155,7 +155,7 @@ int main()
     worker.reserve(3);
     worker.push_back(std::async(std::launch::async, init_webserver, std::ref(run_condition)));
     // worker.push_back(std::async(std::launch::async, main_dial));
-    // worker.push_back(std::async(std::launch::async, main_mdns));
+    worker.push_back(std::async(std::launch::async, main_mdns));
     // worker.push_back(std::async(std::launch::async, init_capture, std::ref(run_condition)));
 
     // Wait for signal and shut down all threads
