@@ -30,9 +30,13 @@ public:
 
     void set_header(const std::string& key, const std::string& value);
 
+    void set_header(const std::string& key, std::string&& value);
+
     void add_cookie(cookie&& cookie);
 
     void set_code(int code) { m_code = code; }
+
+    void set_code(int code, std::string&& phrase) { m_code = code; m_phrase = std::move(phrase); }
 
     void set_body(const std::string& body);
 
@@ -45,6 +49,7 @@ private:
     request m_req;                     /// Request from the client to answer with this response
 
     int m_code = 0;
+    std::string m_phrase;
     std::string m_body;
 
     std::map<std::string, std::string> m_headers;

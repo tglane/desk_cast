@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <fstream>
+#include <charconv>
 
 #include <iostream>
 
@@ -26,8 +27,6 @@ static std::vector<char> file_to_binary(std::string_view path)
 static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
 {
     // TODO improve connection handling
-    // -> Check if request is from cast device
-    // -> Check if it points to a valid endpoint
 
     size_t wait_cnt = 0;
     while(!conn->bytes_available())
@@ -42,28 +41,45 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
     request req;
     try {
         req.parse(conn->read_all<char>().get());
-    } catch(socketwrapper::SocketReadException&) {
-        return;
+    } catch(...) {
+        return; // TODO return error response
     }
-    std::cout << req.to_string() << std::endl;
 
+    // Read file
     std::vector<char> img = file_to_binary("./test_data/test_video.mp4");
-    std::cout << "File size: " << img.size() << std::endl;
 
     response res(req);
-    res.set_code(200);
-    res.set_header("Server", "localhost");
-    res.set_header("Content-type", "video/mp4");
-    res.set_body({img.begin(), img.end()});
+    if(req.check_header("Range"))
+    {
+        size_t start = 0, end = img.size();
+        std::string_view hdr = req.get_header("Range");
+        size_t hyphen_pos = hdr.find("-");
 
-    // std::string res("HTTP/1.1 200 OK\r\nServer: localhost\r\nContent-length: ");
-    // res.append(std::to_string(img.size()));
-    // res.append("\r\nContent-type: video/mp4\r\n\r\n");
-    // res.append({img.begin(), img.end()});
+        if(hdr.find("bytes=") != std::string::npos && hyphen_pos != std::string::npos)
+        {
+            std::from_chars(hdr.data() + 6, hdr.data() + hyphen_pos, start);
+            std::from_chars(hdr.data() + hyphen_pos + 1, hdr.data() + hdr.size(), end);
+        }
+
+        res.set_code(206, "Partial Content");
+        res.set_header("Server", "localhost");
+        res.set_header("Content-Type", "video/mp4");
+        res.set_header("Content-Range", "bytes " + std::to_string(start) + '-' + 
+            std::to_string(end - start - 1) + '/' + std::to_string(img.size()));
+        res.set_body({img.begin() + start, img.end()});
+    }
+    else
+    {
+        res.set_code(200);
+        res.set_header("Server", "localhost");
+        res.set_header("Accept-Ranges", "bytes");
+        res.set_header("Content-Type", "video/mp4");
+        res.set_header("Content-Length", std::to_string(img.size()));
+        // res.set_body({img.begin(), img.end()});
+    }
 
     std::string res_str = res.to_string();
     conn->write<char>(res_str.data(), res_str.size());
-
 }
 
 webserver::webserver(int32_t port, const char* cert_path, const char* key_path)

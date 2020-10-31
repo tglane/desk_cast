@@ -30,7 +30,10 @@ std::string response::to_string()
     std::time_t now(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
 
     /* Begin with response line */
-    response.append("HTTP/1.1 " + std::to_string(m_code) + " " + get_http_phrase(m_code) + "\r\n" + "Date: " + std::ctime(&now));
+    if(m_phrase.empty())
+        response.append("HTTP/1.1 " + std::to_string(m_code) + " " + get_http_phrase(m_code) + "\r\n" + "Date: " + std::ctime(&now));
+    else
+        response.append("HTTP/1.1 " + std::to_string(m_code) + " " + m_phrase + "\r\n" + "Date: " + std::ctime(&now));
 
     /* Append all cookies to response */
     for(auto& it : m_cookies) //TODO auto& or auto?
@@ -96,11 +99,12 @@ void response::send_redirect(const std::string& url)
 
 void response::set_header(const std::string& key, const std::string& value)
 {
-    auto it = m_headers.find(key);
-    if(it != m_headers.end())
-        it->second = value;
-    else
-        m_headers.insert(std::pair<std::string, std::string>(key, value));
+    m_headers[key] = value;
+}
+
+void response::set_header(const std::string& key, std::string&& value)
+{
+    m_headers[key] = std::move(value);
 }
 
 void response::add_cookie(cookie&& cookie)

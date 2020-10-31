@@ -1,5 +1,7 @@
 #include <http/request.hpp>
 
+#include <charconv>
+
 namespace http
 {
 
@@ -98,23 +100,13 @@ void request::parse(const char* request)
     /* Parse POST parameters */
     if(m_method == "POST" || m_method == "post")
     {
-        std::cout << "POST" << std::endl;
-        // TODO Test!
-        try
+        int length;
+        std::string_view hdr = get_header("Content-Length");
+        auto res = std::from_chars(hdr.data(), hdr.data() + hdr.size(), length);
+        if(res.ec != std::errc::invalid_argument && length > 0)
         {
-            int length = stoi(this->get_header("Content-Length"));
-            if(length > 0) 
-            {
-                std::string_view body(headerline.data() + end_pos + 2);
-                request::parse_params(body, m_body_params);
-                std::cout << "test" << std::endl;
-                std::cout << body << std::endl;
-            }
-        }
-        catch(std::invalid_argument& e)
-        {
-            /* Exception occurs if header "Content-Length" is not set.
-               No exception handling needed */
+            std::string_view body(headerline.data() + end_pos + 2);
+            request::parse_params(body, m_body_params);
         }
     }
 }
@@ -219,28 +211,37 @@ void request::parse_cookies(const std::string& cookies)
 
 }
 
-std::string request::get_header(const std::string& key) const
+bool request::check_header(const std::string& key) const
+{
+    auto it = m_headers.find(key);
+    if(it == m_headers.end())
+        return false;
+    else
+        return true;
+}
+
+std::string_view request::get_header(const std::string& key) const
 {
     try {
-        return std::string(m_headers.at(key));
+        return m_headers.at(key);
     } catch(std::out_of_range& e) {
         return "";
     }
 }
 
-std::string request::get_param(const std::string& key) const
+std::string_view request::get_param(const std::string& key) const
 {
     try {
-        return std::string(m_query_params.at(key));
+        return m_query_params.at(key);
     } catch(std::out_of_range& e) {
         return "";
     }
 }
 
-std::string request::get_post_param(const std::string& key) const
+std::string_view request::get_post_param(const std::string& key) const
 {
     try {
-        return std::string(m_body_params.at(key));
+        return m_body_params.at(key);
     } catch(std::out_of_range& e) {
         return "";
     }

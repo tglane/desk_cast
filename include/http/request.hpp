@@ -30,21 +30,23 @@ public:
 
     std::string to_string() const;
 
+    bool check_header(const std::string& key) const;
+
     std::map<std::string_view, std::string_view> get_headers() const { return m_headers; }
 
-    std::string get_header(const std::string& key) const;
+    std::string_view get_header(const std::string& key) const;
 
-    std::string get_method() const { return std::string(m_method); }
+    std::string_view get_method() const { return m_method; }
 
-    std::string get_resource() const { return std::string(m_resource); }
+    std::string_view get_resource() const { return m_resource; }
 
-    std::string get_protocol() const { return std::string(m_protocol); }
+    std::string_view get_protocol() const { return m_protocol; }
 
-    std::string get_path() const { return std::string(m_path); }
+    std::string_view get_path() const { return m_path; }
 
     std::map<std::string_view, std::string_view> get_params() const { return m_query_params; }
 
-    std::string get_param(const std::string& key) const;
+    std::string_view get_param(const std::string& key) const;
 
     std::map<std::string, cookie> get_cookies() const { return m_cookies; }
 
@@ -52,7 +54,7 @@ public:
 
     std::map<std::string_view, std::string_view> get_post_params() const { return m_body_params; }
 
-    std::string get_post_param(const std::string &key) const;
+    std::string_view get_post_param(const std::string &key) const;
 
 private:
 
