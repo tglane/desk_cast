@@ -84,7 +84,7 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
     // CORS
     if(req.check_header("Origin"))
     {
-        res.set_header("Access-Control-Allow-Origin", req.get_header("Origin"));
+        res.set_header("Access-Control-Allow-Origin", std::string(req.get_header("Origin")));
         res.set_header("Access-Control-Allow-Methods", "GET");
     }
 
