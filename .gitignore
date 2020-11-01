@@ -4,3 +4,4 @@ desk_cast
 *.pb.o
 *.pb.cc
 *.pb.h
+*.pem

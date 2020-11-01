@@ -14,8 +14,9 @@
 
 #include <http/webserver.hpp>
 
-#define SSL_CERT "/etc/ssl/certs/cert.pem"
-#define SSL_KEY "/etc/ssl/private/key.pem"
+// Set path to certificate and READEABLE key file used by the webserver and the cast device connector
+#define SSL_CERT "./cert.pem"
+#define SSL_KEY "./key.pem"
 
 #define WEBSERVER_PORT 5770
 

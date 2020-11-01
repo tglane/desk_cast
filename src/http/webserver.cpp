@@ -93,7 +93,7 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
 }
 
 webserver::webserver(int32_t port, const char* cert_path, const char* key_path)
-    : m_sock(AF_INET)
+    : m_sock(AF_INET, cert_path, key_path)
 {
     m_sock.bind("0.0.0.0", port);
 }
@@ -102,7 +102,7 @@ void webserver::serve(std::atomic<bool>& run_condition)
 {
     m_sock.listen(1);
 
-    std::cout << "Webserver serving ...\n";
+    std::cout << "Webserver serving ..." << std::endl;
     while(run_condition)
     {
         try {
