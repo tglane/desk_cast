@@ -31,13 +31,25 @@ public:
 
     void set_expiry_date(int days);
 
-    void set_http_only(bool value) { m_http_only = value; }
+    void set_http_only(bool value)
+    {
+        m_http_only = value;
+    }
 
-    void set_secure(bool value) { m_secure = value; }
+    void set_secure(bool value)
+    {
+        m_secure = value;
+    }
 
-    string get_name() { return m_name; }
+    string get_name()
+    {
+        return m_name;
+    }
 
-    string get_value() { return m_value; }
+    string get_value()
+    {
+        return m_value;
+    }
 
 private:
 

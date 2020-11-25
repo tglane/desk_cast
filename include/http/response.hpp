@@ -22,7 +22,7 @@ public:
     response() = default;
 
     explicit response(const request& req) 
-        : m_req(req)
+        : m_req {req}
     {}
 
     std::string to_string();
@@ -37,15 +37,24 @@ public:
 
     void add_cookie(cookie&& cookie);
 
-    void set_code(int code) { m_code = code; }
+    void set_code(int code)
+    {
+        m_code = code;
+    }
 
-    void set_code(int code, std::string&& phrase) { m_code = code; m_phrase = std::move(phrase); }
+    void set_code(int code, std::string&& phrase) 
+    {
+        m_code = code; m_phrase = std::move(phrase);
+    }
 
     void set_body(const std::string& body);
 
     void set_body(std::string&& body);
 
-    int get_code() const { return m_code; }
+    int get_code() const
+    {
+        return m_code;
+    }
 
 private:
 

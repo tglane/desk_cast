@@ -16,15 +16,15 @@ ssdp_res parse_request(std::string_view view)
 {
     ssdp_res res;
 
-    view = std::string_view(view.data() + view.find("\r\n") + 2);
+    view = {view.data() + view.find("\r\n") + 2};
     while(view != "\r\n")
     {
         size_t sep = view.find(':'),endl = view.find("\r\n");
         // TODO error checking
 
-        res[std::string(view.data(), sep)] = std::string(view.data() + sep + 2, endl - ( sep + 2));
+        res[std::string(view.data(), sep)] = std::string {view.data() + sep + 2, endl - ( sep + 2)};
 
-        view = std::string_view(view.data() + endl + 2);
+        view = std::string_view {view.data() + endl + 2};
     }
 
     return res;
@@ -34,14 +34,14 @@ void parse_location(const std::string& location, std::string& addr, std::string&
 {
     // TODO Throw std::invalid_argument if location is not a valid location string
 
-    std::string_view view(location.data() + location.find(':') + 3);
+    std::string_view view {location.data() + location.find(':') + 3};
 
-    addr = std::string(view.data(), view.find(':'));
+    addr = std::string {view.data(), view.find(':')};
 
-    std::string_view port_view(view.data() + view.find(':') + 1, view.find('/'));
+    std::string_view port_view {view.data() + view.find(':') + 1, view.find('/')};
     port = std::stoi(port_view.data());
 
-    path = std::string(port_view.data() + port_view.find('/'));
+    path = std::string {port_view.data() + port_view.find('/')};
 }
 
 std::vector<ssdp_res> upnp_discovery()
@@ -50,7 +50,7 @@ std::vector<ssdp_res> upnp_discovery()
 
     bool stop = false;
     const char* msg = "M-SEARCH * HTTP/1.1\r\n Host: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 3\r\nST: urn:dial-multiscreen-org:service:dial:1\r\n\r\n";
-    socketwrapper::UDPSocket d_sock(AF_INET);
+    socketwrapper::UDPSocket d_sock {AF_INET};
     std::vector<ssdp_res> responses;
 
     d_sock.bind("0.0.0.0", 1900);

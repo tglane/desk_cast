@@ -44,7 +44,8 @@ public:
     receiver& operator=(receiver&&) = default;
 
     receiver(const std::shared_ptr<socketwrapper::SSLTCPSocket>& sock)
-        : m_sock_ptr(sock) {}
+        : m_sock_ptr {sock}
+    {}
 
     ~receiver()
     {
@@ -116,7 +117,7 @@ private:
 
 
 cast_device::cast_device(const discovery::mdns_res& res, const char* ssl_cert, const char* ssl_key)
-    : m_sock_ptr(std::make_shared<socketwrapper::SSLTCPSocket>(AF_INET, ssl_cert, ssl_key))
+    : m_sock_ptr {std::make_shared<socketwrapper::SSLTCPSocket>(AF_INET, ssl_cert, ssl_key)}
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -156,9 +157,9 @@ cast_device::cast_device(const discovery::mdns_res& res, const char* ssl_cert, c
 }
 
 cast_device::cast_device(cast_device&& other)
-    : m_sock_ptr(std::move(other.m_sock_ptr)), m_heartbeat(std::move(other.m_heartbeat)), m_receiver(std::move(other.m_receiver)),
-      m_connected(other.m_connected.load()), m_name(std::move(other.m_name)), m_target(std::move(other.m_target)), 
-      m_ip(std::move(other.m_ip)), m_txt(std::move(other.m_txt))
+    : m_sock_ptr {std::move(other.m_sock_ptr)}, m_heartbeat {std::move(other.m_heartbeat)}, m_receiver {std::move(other.m_receiver)},
+      m_connected {other.m_connected.load()}, m_name {std::move(other.m_name)}, m_target {std::move(other.m_target)}, 
+      m_ip {std::move(other.m_ip)}, m_txt{std::move(other.m_txt)}
 {
     other.m_connected.exchange(false);
     other.m_request_id = 0;
@@ -187,13 +188,13 @@ bool cast_device::connect()
         return false;
     }
 
-    this->send(namespace_connection, R"({ "type": "CONNECT" })");
+    send(namespace_connection, R"({ "type": "CONNECT" })");
     m_connected.exchange(true);
 
     // Launch the receiver to receive and sort messages from the chromecast into the receivers deques
     m_receiver->launch();
 
-    this->send(namespace_receiver, R"({ "type": "GET_STATUS", "requestId": 0 })");
+    send(namespace_receiver, R"({ "type": "GET_STATUS", "requestId": 0 })");
     json recv = read(m_request_id);
 
     // Launch the heartbeat signal to keep the connection alive
@@ -228,7 +229,7 @@ bool cast_device::app_available(std::string_view app_id) const
 cast_app& cast_device::launch_app(const std::string& app_id)
 {
     if(!m_connected.load())
-        throw std::runtime_error("Not connected");
+        throw std::runtime_error {"Not connected"};
 
     json j_send, j_recv;
 
@@ -240,7 +241,7 @@ cast_app& cast_device::launch_app(const std::string& app_id)
     j_recv = read(m_request_id);
     if(j_recv.empty() || j_recv["responseType"] != "GET_APP_AVAILABILITY" ||
         j_recv["availability"][app_id.data()] != "APP_AVAILABLE")
-        throw std::runtime_error("App not available");
+        throw std::runtime_error {"App not available"};
 
     j_send["type"] = "LAUNCH";
     j_send["appId"] = app_id;
@@ -258,7 +259,7 @@ cast_app& cast_device::launch_app(const std::string& app_id)
     while(true)
     {
         if(poll_it >= 20)
-            throw std::runtime_error("Could not bring up app");
+            throw std::runtime_error {"Could not bring up app"};
 
         j_send["type"] = "GET_STATUS";
         j_send["requestId"] = ++m_request_id;
@@ -289,7 +290,7 @@ cast_app& cast_device::launch_app(const std::string& app_id)
     }
 
     // TODO on cold start it brekas the while loop immediately and goes to this point ...
-    throw std::runtime_error("App not launched");
+    throw std::runtime_error {"App not launched"};
 }
 
 void cast_device::close_app()

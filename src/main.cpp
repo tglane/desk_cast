@@ -39,10 +39,10 @@ static void main_dial()
             continue;
         }
 
-        socketwrapper::TCPSocket conn(AF_INET);
+        socketwrapper::TCPSocket conn {AF_INET};
         conn.connect(port, addr);
 
-        std::string req_str("GET ");
+        std::string req_str {"GET "};
         (((req_str += path) += " HTTP/1.1\r\nHOST: ") += addr) +=  "\r\n\r\n";
         std::cout << req_str << '\n';
 
@@ -89,13 +89,10 @@ static void main_mdns()
 
     try {
         googlecast::cast_app& app = dev.launch_app("CC1AD845");
-        // TODO If this returns false, the media is not set so exit the execution
-        app.set_media();
-    } catch(std::runtime_error& e) {
-        std::cout << "[ERROR_LAUNCH_APP]:\n" << e.what() << std::endl;
-        return;
-    } catch(...) {
-        std::cout << "..." << std::endl;
+        if(!app.set_media())
+            return;
+    } catch(std::exception& e) {
+        std::cout << "[ERROR_LAUNCH_APP]:\n" << e.what() << '\n';
         return;
     }
 
@@ -112,7 +109,7 @@ static void main_mdns()
 
 static void init_webserver(std::atomic<bool>& run_condition)
 {
-    http::webserver server(WEBSERVER_PORT, SSL_CERT, SSL_KEY);
+    http::webserver server {WEBSERVER_PORT, SSL_CERT, SSL_KEY};
     server.serve(run_condition);
 }
 
@@ -127,7 +124,7 @@ static void block_signals(sigset_t* sigset)
 int main()
 {
     sigset_t sigset;
-    std::atomic<bool> run_condition(true);
+    std::atomic<bool> run_condition {true};
     block_signals(&sigset);
 
     std::future<int> signal_handler = std::async(std::launch::async, [&run_condition, &sigset]()
@@ -139,7 +136,7 @@ int main()
 
         // TODO Change to async I/O
         // Quick and dirty to stop waiting for accept in the web server
-        socketwrapper::TCPSocket sock(AF_INET);
+        socketwrapper::TCPSocket sock {AF_INET};
         sock.connect(WEBSERVER_PORT, "127.0.0.1");
 
         return signum;

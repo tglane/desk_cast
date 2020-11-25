@@ -25,9 +25,9 @@ std::string response::to_string()
     }
     if(m_headers.find("Content-Type") == m_headers.end())
     {
-        m_headers.insert(std::pair<string, string>("Content-Type", "text/html; charset=UTF-8"));
+        m_headers.insert(std::pair<string, string> {"Content-Type", "text/html; charset=UTF-8"});
     }
-    std::time_t now(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
+    std::time_t now {std::chrono::system_clock::to_time_t(std::chrono::system_clock::now())};
 
     /* Begin with response line */
     if(m_phrase.empty())
@@ -64,14 +64,14 @@ void response::set_body_from_file(const std::string &bodyFile)
     if(bodyFile.rfind("..") != std::string::npos)
     {
         c_file_mutex.unlock();
-        throw std::invalid_argument("Path contains not allowed characters!\n");
+        throw std::invalid_argument {"Path contains not allowed characters!\n"};
     }
     //TODO use only the filename and search only in allowed folders for the filename
-    std::ifstream ifs(bodyFile);
+    std::ifstream ifs {bodyFile};
     if(!ifs.good())
     {
         c_file_mutex.unlock();
-        throw std::invalid_argument("Requested file not found.\n");
+        throw std::invalid_argument {"Requested file not found.\n"};
     }
     c_file_mutex.unlock();
     std::stringstream sstr;

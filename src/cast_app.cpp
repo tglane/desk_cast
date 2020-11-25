@@ -11,7 +11,7 @@ namespace googlecast
 
 cast_app::cast_app(cast_device* device, const std::string& app_id, const std::string& session_id,
     const std::string& transport_id, const json& nspaces)
-    : m_device(device), m_app_id(app_id), m_session_id(session_id), m_transport_id(transport_id), m_namespaces(nspaces)
+    : m_device {device}, m_app_id {app_id}, m_session_id {session_id}, m_transport_id {transport_id}, m_namespaces {nspaces}
 {}
 
 bool cast_app::set_media() const
@@ -22,10 +22,15 @@ bool cast_app::set_media() const
     // obj["media"]["contentId"] = "http://192.168.178.108:5770/test_image";
     // obj["media"]["contentType"] = "image/jpeg";
     // obj["media"]["streamType"] = "NONE";
-    obj["media"]["contentId"] = "http://techslides.com/demos/sample-videos/small.mp4";
-    // obj["media"]["contentId"] = "http://192.168.178:5770/test_video";
-    obj["media"]["contentType"] = "video/mp4";
-    obj["media"]["streamType"] = "BUFFERED";
+    // -------------
+    // obj["media"]["contentId"] = "http://techslides.com/demos/sample-videos/small.mp4";
+    // obj["media"]["contentType"] = "video/mp4";
+    // obj["media"]["streamType"] = "BUFFERED";
+    // -------------
+    obj["media"]["contentId"] = "http://192.168.178:5770/index.m3u8";
+    obj["media"]["contentType"] = "application/x-mpegurl";
+    obj["media"]["streamType"] = "LIVE";
+    // -------------
     obj["type"] = "LOAD";
     obj["requestId"] = req_id;
 
@@ -46,6 +51,8 @@ bool cast_app::set_media() const
         cnt++;
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
+
+    std::cout << "[DEBUG]:\n" << recv.dump() << std::endl;
 
     // Check if response from device indicates loading error or not
     if(recv.contains("type") && recv["type"] == "MEDIA_STATUS")

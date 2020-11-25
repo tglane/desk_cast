@@ -30,11 +30,11 @@ request& request::operator=(request&& other)
     this->m_cookies = std::move(other.m_cookies);
     this->m_body_params = std::move(m_body_params);
 
-    other.m_method = std::string_view(other.m_request.data());
-    other.m_protocol = std::string_view(other.m_request.data());
-    other.m_resource = std::string_view(other.m_request.data());
-    other.m_path = std::string_view(other.m_request.data());
-    other.m_fragment = std::string_view(other.m_request.data());
+    other.m_method = std::string_view {other.m_request.data()};
+    other.m_protocol = std::string_view {other.m_request.data()};
+    other.m_resource = std::string_view {other.m_request.data()};
+    other.m_path = std::string_view {other.m_request.data()};
+    other.m_fragment = std::string_view {other.m_request.data()};
     other.m_query_params.clear();
     other.m_headers.clear();
     other.m_cookies.clear();
@@ -46,7 +46,7 @@ request& request::operator=(request&& other)
 void request::parse(const char* request)
 {
     size_t pos_q;
-    m_request = std::string(request);
+    m_request = std::string {request};
 
     /* extract the request line */
     // std::istringstream request_stringstream(m_request);
@@ -58,7 +58,7 @@ void request::parse(const char* request)
     pos_q = m_request.find("\r\n");
     if(pos_q == std::string::npos)
         throw std::invalid_argument("invalid_request");
-    this->parse_requestline(std::string_view(m_request.data(), pos_q + 1));
+    this->parse_requestline(std::string_view {m_request.data(), pos_q + 1});
 
     /* Parse resource to path and params */
     if((pos_q = m_resource.find('?')) == std::string::npos)
@@ -67,13 +67,13 @@ void request::parse(const char* request)
     }
     else
     {
-        m_path = std::string_view(m_resource.data(), pos_q);
-        request::parse_params(std::string_view(m_resource.data() + pos_q + 1, m_protocol.data() - (m_resource.data() + pos_q + 1) - 1), m_query_params);
+        m_path = std::string_view {m_resource.data(), pos_q};
+        request::parse_params(std::string_view (m_resource.data() + pos_q + 1, m_protocol.data() - (m_resource.data() + pos_q + 1) - 1), m_query_params);
     }
 
     /* Read and parse request headers */
     size_t start_pos = m_request.find("\r\n") + 2, mid_pos, end_pos;
-    std::string_view headerline(m_request.data() + start_pos);
+    std::string_view headerline {m_request.data() + start_pos};
     while(headerline != "\r\n" || headerline != "\r" || headerline != "\n")
     {
         mid_pos = headerline.find(':');
@@ -82,12 +82,12 @@ void request::parse(const char* request)
             break;
 
         if(start_pos == std::string_view::npos || mid_pos == std::string_view::npos || end_pos == std::string_view::npos)
-            throw std::invalid_argument("invalid_request");
+            throw std::invalid_argument {"invalid_request"};
 
-        m_headers.insert({ std::string_view(headerline.data(), mid_pos), std::string_view(headerline.data() + mid_pos + 2, end_pos - (mid_pos + 2)) });
+        m_headers.insert({ std::string_view {headerline.data(), mid_pos}, std::string_view {headerline.data() + mid_pos + 2, end_pos - (mid_pos + 2)} });
  
         start_pos = end_pos;
-        headerline = std::string_view(headerline.data() + end_pos + 2);
+        headerline = std::string_view {headerline.data() + end_pos + 2};
     }
 
     /* Read cookies and put it in m_cookies */
@@ -105,7 +105,7 @@ void request::parse(const char* request)
         auto res = std::from_chars(hdr.data(), hdr.data() + hdr.size(), length);
         if(res.ec != std::errc::invalid_argument && length > 0)
         {
-            std::string_view body(headerline.data() + end_pos + 2);
+            std::string_view body {headerline.data() + end_pos + 2};
             request::parse_params(body, m_body_params);
         }
     }
@@ -118,7 +118,7 @@ std::string request::to_string() const
 
     // TODO Fix this to work with string_view
 
-    std::string request(m_method.data());
+    std::string request {m_method.data()};
     ((request += " ") += m_path.data()) += "?";
     for(const auto& it : m_query_params)
         (((request += it.first.data()) += "=") += it.second.data()) += "&";
@@ -148,7 +148,7 @@ cookie request::get_cookie(const std::string& cookie_name) const
     }
     catch(std::out_of_range& e)
     {
-        throw std::out_of_range("No matching cookie found");
+        throw std::out_of_range {"No matching cookie found"};
     }
 }
 
@@ -160,14 +160,14 @@ void request::parse_requestline(std::string_view requestline)
     {
         if(requestline[i] == ' ' || i + 1 == requestline.size())
         {
-            tmp_store[vec_index] = std::string_view(requestline.data() + last_index, i - last_index);
+            tmp_store[vec_index] = std::string_view (requestline.data() + last_index, i - last_index);
             last_index = i + 1;
             vec_index++;
         }
     }
 
     if(vec_index != 3)
-        throw std::invalid_argument("invalid_requestline");
+        throw std::invalid_argument {"invalid_requestline"};
 
     this->m_method = tmp_store[0];
     this->m_resource = tmp_store[1];
@@ -181,12 +181,12 @@ void request::parse_params(std::string_view param_string, std::map<std::string_v
     {
         if(param_string[i] == '&' || param_string[i] == '#' || i == param_string.length())
         {
-           std::string_view param(param_string.data() + offset, i - offset);
+           std::string_view param (param_string.data() + offset, i - offset);
             size_t pos = param_string.find('=');
             if(pos != std::string::npos)
             {
-                param_container.insert({ std::string_view(param.data(), pos), 
-                    std::string_view(param.data() + pos + 1, i - offset - pos - 1) });
+                param_container.insert({ std::string_view {param.data(), pos}, 
+                    std::string_view {param.data() + pos + 1, i - offset - pos - 1} });
             }
             offset = i + 1;
         }
@@ -195,9 +195,9 @@ void request::parse_params(std::string_view param_string, std::map<std::string_v
 
 void request::parse_cookies(const std::string& cookies)
 {
-    std::istringstream iss(cookies);
-    std::vector<std::string> cookies_split((std::istream_iterator<std::string>(iss)),
-                                          std::istream_iterator<std::string>());
+    std::istringstream iss {cookies};
+    std::vector<std::string> cookies_split {(std::istream_iterator<std::string> {iss}),
+                                          std::istream_iterator<std::string> {}};
 
     for(auto& it : cookies_split)
     {
@@ -206,7 +206,7 @@ void request::parse_cookies(const std::string& cookies)
 
         size_t pos = it.find('=');
         cookie c(it.substr(0, pos), it.substr(pos + 1));
-        m_cookies.insert(std::pair<std::string, cookie>(it.substr(0, pos), c));
+        m_cookies.insert(std::pair<std::string, cookie> {it.substr(0, pos), c});
     }
 
 }
@@ -220,28 +220,28 @@ bool request::check_header(const std::string& key) const
         return true;
 }
 
-std::string_view request::get_header(const std::string& key) const
+std::string request::get_header(const std::string& key) const
 {
     try {
-        return m_headers.at(key);
+        return std::string {m_headers.at(key)};
     } catch(std::out_of_range& e) {
         return "";
     }
 }
 
-std::string_view request::get_param(const std::string& key) const
+std::string request::get_param(const std::string& key) const
 {
     try {
-        return m_query_params.at(key);
+        return std::string {m_query_params.at(key)};
     } catch(std::out_of_range& e) {
         return "";
     }
 }
 
-std::string_view request::get_post_param(const std::string& key) const
+std::string request::get_post_param(const std::string& key) const
 {
     try {
-        return m_body_params.at(key);
+        return std::string {m_body_params.at(key)};
     } catch(std::out_of_range& e) {
         return "";
     }

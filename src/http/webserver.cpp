@@ -20,8 +20,8 @@ static std::vector<char> file_to_binary(std::string_view path)
 {
     std::ifstream ifs(path.data(), std::ios::binary);
 
-    return std::vector<char>((std::istreambuf_iterator<char>(ifs)),
-        (std::istreambuf_iterator<char>()));
+    return std::vector<char> {(std::istreambuf_iterator<char>(ifs)),
+        (std::istreambuf_iterator<char>())};
 }
 
 static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
@@ -49,12 +49,26 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
         return;
     }
 
-    // Read file
-    std::vector<char> img = file_to_binary("./test_data/test_video.mp4");
+    std::cout << "[DEBUG]:\n" << req.to_string() << std::endl;
 
-    response res(req);
+    // Read file
+    std::string path;
+    if(req.get_path() == "/index")
+        path = "./test_data/index.m3u8";
+    else
+        path = "./test_data" + req.get_path();
+
+    // std::vector<char> img = file_to_binary("./test_data/test_video.mp4");
+    std::vector<char> img = file_to_binary(path.data());
+    if(img.size() <= 0)
+    {
+        return;
+    }
+
+    response res {req};
     res.set_header("Server", "localhost");
-    res.set_header("Content-Type", "video/mp4");
+    // res.set_header("Content-Type", "video/mp4");
+    res.set_header("Content-Type", "application/x-mpegurl");
 
     if(req.check_header("Range"))
     {
@@ -76,24 +90,21 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
     else
     {
         res.set_code(200);
-        res.set_header("Accept-Ranges", "bytes");
         res.set_header("Content-Length", std::to_string(img.size()));
-        // res.set_body({img.begin(), img.end()});
+        res.set_body({img.begin(), img.end()});
     }
     
     // CORS
-    if(req.check_header("Origin"))
-    {
-        res.set_header("Access-Control-Allow-Origin", std::string(req.get_header("Origin")));
-        res.set_header("Access-Control-Allow-Methods", "GET");
-    }
+    res.set_header("Accept-Ranges", "bytes");
+    res.set_header("Access-Control-Allow-Origin", "*");
+    res.set_header("Access-Control-Allow-Methods", "OPTIONS, GET, HEAD");
 
     std::string res_str = res.to_string();
     conn->write<char>(res_str.data(), res_str.size());
 }
 
 webserver::webserver(int32_t port, const char* cert_path, const char* key_path)
-    : m_sock(AF_INET, cert_path, key_path)
+    : m_sock {AF_INET, cert_path, key_path}
 {
     m_sock.bind("0.0.0.0", port);
 }

@@ -106,11 +106,11 @@ static mdns_res parse_mdns_answer(std::vector<char>& buffer)
     dns_header* dns = reinterpret_cast<dns_header*>(buffer.data());
     
     if(buffer.empty() || ntohs(dns->ans_count) == 0 || ntohs(dns->q_count) > 0)
-        throw std::invalid_argument("Not a valid mdns response.");
+        throw std::invalid_argument {"Not a valid mdns response."};
     
     mdns_res result;
 
-    std::istringstream b_stream(std::string(reinterpret_cast<char*>(buffer.data()), buffer.size()));
+    std::istringstream b_stream {std::string(reinterpret_cast<char*>(buffer.data()), buffer.size())};
     b_stream.exceptions(std::istream::failbit | std::istream::badbit | std::istream::eofbit);
 
     try {
@@ -153,7 +153,7 @@ static mdns_res parse_mdns_answer(std::vector<char>& buffer)
 std::vector<mdns_res> mdns_discovery(const std::string& record_name)
 {
     bool stop = false;
-    socketwrapper::UDPSocket q_sock(AF_INET);
+    socketwrapper::UDPSocket q_sock {AF_INET};
     std::vector<mdns_res> res;
 
     // Set up mdns query
@@ -207,9 +207,9 @@ void parse_ptr_record(const mdns_record& rec, std::string& dest_name)
 {
     // Check if name in record contains pointer
     if(static_cast<uint8_t>(*(rec.data.end() - 2)) == MDNS_OFFSET_TOKEN)
-        dest_name = std::string(rec.data.begin() + 1, rec.data.end() - 2);
+        dest_name = std::string {rec.data.begin() + 1, rec.data.end() - 2};
     else
-        dest_name = std::string(rec.data.begin() + 1, rec.data.end());
+        dest_name = std::string {rec.data.begin() + 1, rec.data.end()};
 }
 
 void parse_txt_record(const mdns_record& rec, std::map<std::string, std::string>& dest_txt)
@@ -221,12 +221,12 @@ void parse_txt_record(const mdns_record& rec, std::map<std::string, std::string>
     {
         size_t len = static_cast<uint8_t>(rec.data[off++]);
 
-        std::string_view view(&rec.data[off], len);
+        std::string_view view {&rec.data[off], len};
         size_t sep = view.find_first_of('=');
         if(sep != std::string::npos)
-            dest_txt.insert(std::pair<std::string, std::string>(
-                std::string(&rec.data[off], sep),
-                std::string(&rec.data[off + sep + 1], len - sep)));
+            dest_txt.insert(std::pair<std::string, std::string> {
+                std::string {&rec.data[off], sep},
+                std::string {&rec.data[off + sep + 1], len - sep}});
 
         off += len;
     }
@@ -238,7 +238,7 @@ void parse_srv_record(const mdns_record& rec, uint32_t& dest_port, std::string& 
     // target : byte 6 to size()
     dest_port = ntohs(*reinterpret_cast<const uint32_t*>(&rec.data[4]));
     if(rec.data.size() > 7)
-        dest_target = std::string(rec.data.begin() + 7, rec.data.end());
+        dest_target = std::string {rec.data.begin() + 7, rec.data.end()};
 }
 
 void parse_a_record(const mdns_record& rec, std::string& dest_addr)
@@ -251,3 +251,4 @@ void parse_a_record(const mdns_record& rec, std::string& dest_addr)
 }
 
 } // namespace discovery
+

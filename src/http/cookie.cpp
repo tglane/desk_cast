@@ -14,7 +14,8 @@ cookie::cookie(string name, string value, bool httpOnly, bool secure, string com
     m_domain = std::move(domain);
     m_max_age = std::move(max_age);
     m_path = std::move(path);
-    if(expires > 0) { set_expiry_date(expires); }
+    if(expires > 0)
+        set_expiry_date(expires);
 }
 
 string cookie::build_header()
@@ -34,8 +35,8 @@ string cookie::build_header()
 
 void cookie::set_expiry_date(int days)
 {
-    std::chrono::time_point<std::chrono::system_clock> e(std::chrono::system_clock::now() + std::chrono::hours(days * 24));
-    std::time_t t(std::chrono::system_clock::to_time_t(e));
+    std::chrono::time_point<std::chrono::system_clock> e {std::chrono::system_clock::now() + std::chrono::hours(days * 24)};
+    std::time_t t {std::chrono::system_clock::to_time_t(e)};
     m_expires = std::ctime(&t);
 }
 
