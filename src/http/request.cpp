@@ -154,13 +154,13 @@ cookie request::get_cookie(const std::string& cookie_name) const
 
 void request::parse_requestline(std::string_view requestline)
 {
-    int last_index = 0, vec_index = 0;
+    uint32_t last_index = 0, vec_index = 0;
     std::string_view tmp_store[3];
-    for(int i = 0; i < requestline.size() && vec_index < 3; i++)
+    for(uint32_t i = 0; i < requestline.size() && vec_index < 3; i++)
     {
         if(requestline[i] == ' ' || i + 1 == requestline.size())
         {
-            tmp_store[vec_index] = std::string_view (requestline.data() + last_index, i - last_index);
+            tmp_store[vec_index] = std::string_view {requestline.data() + last_index, i - last_index};
             last_index = i + 1;
             vec_index++;
         }
@@ -176,12 +176,12 @@ void request::parse_requestline(std::string_view requestline)
 
 void request::parse_params(std::string_view param_string, std::map<std::string_view, std::string_view>& param_container)
 {
-    int offset = 0;
-    for(int i = 0; i <= param_string.length(); i++)
+    uint32_t offset = 0;
+    for(uint32_t i = 0; i <= param_string.length(); i++)
     {
         if(param_string[i] == '&' || param_string[i] == '#' || i == param_string.length())
         {
-           std::string_view param (param_string.data() + offset, i - offset);
+           std::string_view param {param_string.data() + offset, i - offset};
             size_t pos = param_string.find('=');
             if(pos != std::string::npos)
             {
