@@ -3,7 +3,7 @@ CC := g++
 PROTOC := protoc
 
 CFLAGS := -std=c++17 -Iinclude -fpic -O3
-LDFLAGS := -L./lib -lsocketwrapper -lpthread -lcrypto -lssl -lprotobuf
+LDFLAGS := -L./lib -lsocketwrapper -lpthread -lcrypto -lssl -lprotobuf -lavcodec -lavformat -lavdevice -lavutil
 
 APPNAME = desk_cast
 
@@ -21,7 +21,7 @@ all: $(APPNAME)
 
 .PHONY: $(APPNAME)
 $(APPNAME): $(PROTOOBJ) $(OBJFILES)
-	$(CC) $^ $(LDFLAGS) $(CFLAGS) -o $(APPNAME)
+	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $(APPNAME)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	$(CC) $(CFLAGS) -c $< -o $@ 
