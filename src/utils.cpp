@@ -36,7 +36,10 @@ std::string get_local_ipaddr()
 
             std::bitset<sizeof(unsigned int) * 8> flags {curr_addr->ifa_flags};
             if (flags.test(IFF_UP) && !flags.test(IFF_LOOPBACK))
+            {
+                freeifaddrs(addrs);
                 return host.data();
+            }
         }
     }
 
