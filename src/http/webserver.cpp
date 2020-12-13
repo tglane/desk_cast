@@ -31,7 +31,7 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
     size_t wait_cnt = 0;
     while(!conn->bytes_available())
     {
-        if(wait_cnt >= 5)
+        if(wait_cnt >= 10)
             return;
 
         wait_cnt++;
@@ -53,22 +53,20 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
 
     // Read file
     std::string path;
-    if(req.get_path() == "/index")
-        path = "./test_data/index.m3u8";
-    else
-        path = "./test_data" + req.get_path();
+    // if(req.get_path() == "/index")
+    //     path = "./test_data/index.m3u8";
+    // else
+    //     path = "./test_data" + req.get_path();
+    path = "./test_data/test_video.mp4";
 
-    // std::vector<char> img = file_to_binary("./test_data/test_video.mp4");
     std::vector<char> img = file_to_binary(path.data());
     if(img.size() <= 0)
-    {
         return;
-    }
 
     response res {req};
     res.set_header("Server", "localhost");
-    // res.set_header("Content-Type", "video/mp4");
-    res.set_header("Content-Type", "application/x-mpegurl");
+    res.set_header("Content-Type", "video/mp4");
+    // res.set_header("Content-Type", "application/x-mpegurl");
 
     if(req.check_header("Range"))
     {
@@ -85,13 +83,13 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
         res.set_code(206, "Partial Content");
         res.set_header("Content-Range", "bytes " + std::to_string(start) + '-' + 
             std::to_string(end - start - 1) + '/' + std::to_string(img.size()));
-        res.set_body({img.begin() + start, img.begin() + end});
+        res.set_body(std::string {img.begin() + start, img.begin() + end});
     }
     else
     {
         res.set_code(200);
         res.set_header("Content-Length", std::to_string(img.size()));
-        res.set_body({img.begin(), img.end()});
+        res.set_body(std::string {img.begin(), img.end()});
     }
     
     // CORS

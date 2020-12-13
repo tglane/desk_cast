@@ -222,26 +222,25 @@ bool cast_device::disonnect()
 
 bool cast_device::app_available(std::string_view app_id) const
 {
-    // TODO
-    return true;
+    json obj = json::parse(R"({"type":"GET_APP_AVAILABILITY"})");
+    obj["appId"] = {app_id};
+    obj["requestId"] = ++m_request_id;
+    send_json(namespace_receiver, obj);
+
+    obj = read(m_request_id);
+    if(!obj.empty() && obj["responseType"] == "GET_APP_AVAILABILITY" && 
+        obj["availability"][app_id.data()] == "APP_AVAILABLE")
+        return true;
+
+    return false;
 }
 
 cast_app& cast_device::launch_app(const std::string& app_id)
 {
-    if(!m_connected.load())
-        throw std::runtime_error {"Not connected"};
+    if(!m_connected.load() || !app_available(app_id))
+        throw std::runtime_error {"Not able to cast the app"};
 
     json j_send, j_recv;
-
-    j_send = R"({ "type": "GET_APP_AVAILABILITY" })"_json;
-    j_send["appId"] = { app_id };
-    j_send["requestId"] = ++m_request_id;
-    send_json(namespace_receiver, j_send);
-
-    j_recv = read(m_request_id);
-    if(j_recv.empty() || j_recv["responseType"] != "GET_APP_AVAILABILITY" ||
-        j_recv["availability"][app_id.data()] != "APP_AVAILABLE")
-        throw std::runtime_error {"App not available"};
 
     j_send["type"] = "LAUNCH";
     j_send["appId"] = app_id;
@@ -289,7 +288,6 @@ cast_app& cast_device::launch_app(const std::string& app_id)
         poll_it++;
     }
 
-    // TODO on cold start it brekas the while loop immediately and goes to this point ...
     throw std::runtime_error {"App not launched"};
 }
 

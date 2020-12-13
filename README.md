@@ -10,8 +10,16 @@ Next step will be implementing the streaming of the current desktop using ffmpeg
 
 How to use:
 -----------
-Compile the app by simply typing `make` in the root directory of the project.  
+Compile the app by simply typing `make` in the root directory of the project and make sure there is a ssl certificate file (cert.pem by default) as well as a key file (key.pem by default) in the directory.
 Start the app by typing `./desk_cast`
 Wait for the network scanning to finish. This will show a list of available devices on the command line. Type in the number of the device to use.
 This will instruct the selected device to download the current test video from the `test_data` directory.
 
+TODOs:
+------
+* Correctly close connection to chromecast on error or exit
+* Sometimes the same cast device is listed multiple times. Make sure that one devices only shows up once.
+* Make sure the webserver can serve HLS streams correctly.
+* Caputre the screen (on linux via x11-grab device) with ffmpeg lib.
+* Create HLS stream from screen capture and serve this via the webserver.
+* Create a virtual display and capture this.
