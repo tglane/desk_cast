@@ -26,16 +26,17 @@ bool cast_app::set_media() const
 
     uint64_t req_id = ++(m_device->m_request_id);
     json obj;
+    // --- image ---
     // obj["media"]["contentId"] = "https://kinsta.com/de/wp-content/uploads/sites/5/2019/09/jpg-vs-jpeg-1024x512.jpg";
     // obj["media"]["contentId"] = content_id;
     // obj["media"]["contentType"] = "image/jpeg";
     // obj["media"]["streamType"] = "NONE";
-    // -------------
+    // --- static mp4 video ---
     // obj["media"]["contentId"] = "http://techslides.com/demos/sample-videos/small.mp4";
     obj["media"]["contentId"] = content_id;
     obj["media"]["contentType"] = "video/mp4";
     obj["media"]["streamType"] = "BUFFERED";
-    // -------------
+    // --- hls streamed video ---
     // obj["media"]["contentId"] = content_id;
     // obj["media"]["contentType"] = "application/x-mpegurl";
     // obj["media"]["streamType"] = "LIVE";
@@ -43,7 +44,6 @@ bool cast_app::set_media() const
     obj["type"] = "LOAD";
     obj["requestId"] = req_id;
 
-    std::cout << obj.dump(2);
     m_device->send_json(namespace_media, obj, m_transport_id);
 
     // Takes time to launch the app on older devices so lets wait a bit here
@@ -62,7 +62,7 @@ bool cast_app::set_media() const
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
-    std::cout << "[DEBUG]: Castdevice response:\n" << recv.dump() << std::endl;
+    std::cout << "[DEBUG] Castdevice launch-response:\n" << recv.dump() << std::endl;
 
     // Check if response from device indicates loading error or not
     if(recv.contains("type") && recv["type"] == "MEDIA_STATUS")
