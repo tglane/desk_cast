@@ -1,5 +1,5 @@
-CC := g++
-# CC := clang++-6.0
+# CC := g++
+CC := clang++
 PROTOC := protoc
 
 CFLAGS := -std=c++17 -Iinclude -fpic -O3

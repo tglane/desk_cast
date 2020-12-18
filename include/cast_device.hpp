@@ -23,6 +23,19 @@ namespace googlecast
 
 class receiver;
 
+struct app_details
+{
+    std::string id;
+    std::string session_id;
+    std::string transport_id;
+    json namespaces;
+
+    operator bool() const
+    {
+        return (!id.empty() && !transport_id.empty() && !session_id.empty());
+    }
+};
+
 class cast_device
 {
 public:
@@ -42,7 +55,7 @@ public:
 
     bool app_available(std::string_view app_id) const;
 
-    cast_app& launch_app(const std::string& app_id);
+    bool launch_app(app_details&& launch_details, json&& launch_payload);
 
     void close_app();
 
@@ -54,9 +67,9 @@ public:
 
     json get_status() const;
 
-    inline cast_app& get_app() const
+    inline app_details get_app_details() const
     {
-        return *m_active_app;
+        return m_active_app;
     }
 
     inline const std::string& get_name() const
@@ -80,11 +93,11 @@ private:
 
     std::unique_ptr<receiver> m_receiver;           // Utility class to wait for responses of the connected cast device
 
-    std::unique_ptr<cast_app> m_active_app;
-
     std::shared_ptr<socketwrapper::SSLTCPSocket> m_sock_ptr;
 
     std::atomic<bool> m_connected = ATOMIC_VAR_INIT(false);
+
+    app_details m_active_app;
 
     std::string m_name;                             // From PTR record
 

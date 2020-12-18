@@ -235,22 +235,17 @@ bool cast_device::app_available(std::string_view app_id) const
     return false;
 }
 
-cast_app& cast_device::launch_app(const std::string& app_id)
+bool cast_device::launch_app(app_details&& launch_details, json&& launch_payload)
 {
-    if(!m_connected.load() || !app_available(app_id))
-        throw std::runtime_error {"Not able to cast the app"};
+    if(!m_connected.load() || !app_available(launch_details.id))
+        return false;
 
     json j_send, j_recv;
 
     j_send["type"] = "LAUNCH";
-    j_send["appId"] = app_id;
+    j_send["appId"] = launch_details.id;
     j_send["requestId"] = ++m_request_id;
     send_json(namespace_receiver, j_send);
-
-    // I think that i dont get a response to my launch request
-    // j_recv = read(m_request_id);
-    // if(j_recv.empty())
-    //     return false;
 
     // Wait until the chromecast has launched the app succesfully to receive its status
     j_send.erase("appId");
@@ -258,7 +253,7 @@ cast_app& cast_device::launch_app(const std::string& app_id)
     while(true)
     {
         if(poll_it >= 20)
-            throw std::runtime_error {"Could not bring up app"};
+            return false;
 
         j_send["type"] = "GET_STATUS";
         j_send["requestId"] = ++m_request_id;
@@ -271,33 +266,59 @@ cast_app& cast_device::launch_app(const std::string& app_id)
         // Find app to launch in the response
         for(const auto& app_data : j_recv["status"]["applications"])
         {
-            if(app_data["appId"] != app_id)
+            if(app_data["appId"] != launch_details.id)
                 continue;
 
             // Found the application we want to launch
-            if(m_active_app)
-                close_app();
+            launch_details.session_id = std::move(app_data["sessionId"]);
+            launch_details.transport_id = std::move(app_data["transportId"]);
+            launch_details.namespaces = std::move(app_data["namespaces"]);
+            send(namespace_connection, R"({"type":"CONNECT"})", launch_details.transport_id);
 
-            m_active_app = std::make_unique<cast_app>(this, app_data["appId"], app_data["sessionId"],
-                app_data["transportId"], app_data["namespaces"]);
-            send(namespace_connection, R"({"type":"CONNECT"})", m_active_app->m_transport_id);
-            return *m_active_app;
+            uint64_t req_id = ++m_request_id;
+            launch_payload["requestId"] = req_id;
+            // TODO Maybe dont always use the media namespace? Find a way to choose the namespace from the namespaces of the app_details
+            send_json("urn:x-cast:com.google.cast.media", launch_payload, launch_details.transport_id);
+
+            // Wait some time until the app is launched. Takes some time especially on slower devices
+            uint8_t cnt = 0;
+            while(true)
+            {
+                if(cnt >= 10)
+                    return false;
+                
+                j_recv = read(req_id);
+                if(!j_recv.empty())
+                    break;
+
+                cnt++;
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            }
+
+            std::cout << "[DEBUG] Launch response:\n" << j_recv.dump(2) << std::endl;
+
+            if(j_recv.contains("type") && j_recv["type"] == "MEDIA_STATUS")
+            {
+                m_active_app = launch_details;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         poll_it++;
     }
 
-    throw std::runtime_error {"App not launched"};
+    return false;
 }
 
 void cast_device::close_app()
 {
     if(m_active_app)
-    {
-        send(namespace_connection, R"({ "type": "CLOSE" })", m_active_app->m_transport_id);
-        m_active_app.release();
-    }
+        send(namespace_connection, R"({ "type": "CLOSE" })", m_active_app.transport_id);
 }
 
 json cast_device::get_status() const
