@@ -10,10 +10,10 @@
 #include <atomic>
 
 #include "../protos/cast_channel.pb.h"
-#include <socketwrapper/SSLTCPSocket.hpp>
-#include <json.hpp>
-#include <mdns_discovery.hpp>
-#include <cast_app.hpp>
+#include "socketwrapper/SSLTCPSocket.hpp"
+#include "json.hpp"
+#include "mdns_discovery.hpp"
+#include "cast_app.hpp"
 
 using extensions::core_api::cast_channel::CastMessage;
 using nlohmann::json;

@@ -1,6 +1,6 @@
-#include <http/webserver.hpp>
-#include <http/request.hpp>
-#include <http/response.hpp>
+#include "http/webserver.hpp"
+#include "http/request.hpp"
+#include "http/response.hpp"
 
 #include <memory>
 #include <thread>
@@ -40,7 +40,7 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
 
     request req;
     try {
-        req.parse(conn->read_all<char>().get());
+        req.parse((conn->read_all<char>()).get());
     } catch(...) {
         response res;
         res.set_code(400, "Bad Request");

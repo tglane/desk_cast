@@ -3,17 +3,17 @@
 #include <future>
 #include <signal.h>
 
-#include <socketwrapper/UDPSocket.hpp>
-#include <socketwrapper/TCPSocket.hpp>
-#include <socketwrapper/SSLTCPSocket.hpp>
+#include "socketwrapper/UDPSocket.hpp"
+#include "socketwrapper/TCPSocket.hpp"
+#include "socketwrapper/SSLTCPSocket.hpp"
 
-#include <dial_discovery.hpp>
-#include <mdns_discovery.hpp>
-#include <cast_device.hpp>
-#include <cast_app.hpp>
-#include <utils.hpp>
+#include "dial_discovery.hpp"
+#include "mdns_discovery.hpp"
+#include "cast_device.hpp"
+#include "cast_app.hpp"
+#include "utils.hpp"
 
-#include <http/webserver.hpp>
+#include "http/webserver.hpp"
 
 // Set path to certificate and READEABLE key file used by the webserver and the cast device connector
 #define SSL_CERT "./cert.pem"
@@ -82,7 +82,6 @@ static void main_mdns()
         select = 0; // Default is 0
 
     googlecast::cast_device& dev = devices[select];
-    // dev.close_app();
     if(!dev.connect())
         return; // TODO Return/throw error
 
