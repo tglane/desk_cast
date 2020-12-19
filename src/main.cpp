@@ -87,20 +87,22 @@ static void main_mdns()
 
     std::string content_id;
     try {
-        content_id = "https://" + utils::get_local_ipaddr() + ":5770/test_video.mp4";
+        content_id = "http://" + utils::get_local_ipaddr() + ":5770/test.mp4";
     } catch(std::runtime_error&) {
         return; // TODO Return/throw error
     }
 
     json media_payload;
-    media_payload["media"]["contentId"] = "http://techslides.com/demos/sample-videos/small.mp4";
-    // media_payload["media"]["contentId"] = content_id;
+    media_payload["media"]["contentId"] = content_id;
     media_payload["media"]["contentType"] = "video/mp4";
     media_payload["media"]["streamType"] = "BUFFERED";
     media_payload["type"] = "LOAD";
 
     if(!dev.launch_app(googlecast::app_details {"CC1AD845", "", "", "", }, std::move(media_payload)))
+    {
+        std::cout << "Launch error" << std::endl;
         return; // TODO Return/throw error
+    }
 }
 
 static void init_webserver(std::atomic<bool>& run_condition)

@@ -295,7 +295,7 @@ bool cast_device::launch_app(app_details&& launch_details, json&& launch_payload
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
             }
 
-            std::cout << "[DEBUG] Launch response:\n" << j_recv.dump(2) << std::endl;
+            // std::cout << "[DEBUG] Launch response:\n" << j_recv.dump(2) << std::endl;
 
             if(j_recv.contains("type") && j_recv["type"] == "MEDIA_STATUS")
             {

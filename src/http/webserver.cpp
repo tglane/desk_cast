@@ -27,9 +27,8 @@ static std::vector<char> file_to_binary(std::string_view path)
 static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
 {
     // TODO improve connection handling
-
     size_t wait_cnt = 0;
-    while(!conn->bytes_available())
+    while(conn->bytes_available() <= 0)
     {
         if(wait_cnt >= 10)
             return;
@@ -102,7 +101,8 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
 }
 
 webserver::webserver(int32_t port, const char* cert_path, const char* key_path)
-    : m_sock {AF_INET, cert_path, key_path}
+    // : m_sock {AF_INET, cert_path, key_path}
+    : m_sock {AF_INET}
 {
     m_sock.bind("0.0.0.0", port);
 }

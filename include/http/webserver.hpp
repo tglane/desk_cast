@@ -2,6 +2,7 @@
 #define HTTP_WEBSERVER_HPP
 
 #include "socketwrapper/SSLTCPSocket.hpp"
+#include "socketwrapper/TCPSocket.hpp"
 
 namespace http
 {
@@ -23,7 +24,8 @@ public:
 
 private:
 
-    socketwrapper::SSLTCPSocket m_sock;
+    // socketwrapper::SSLTCPSocket m_sock;
+    socketwrapper::TCPSocket m_sock;
 
 };
 
