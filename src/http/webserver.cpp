@@ -51,21 +51,20 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
     std::cout << "[DEBUG]:\n" << req.to_string() << std::endl;
 
     // Read file
-    std::string path;
-    // if(req.get_path() == "/index")
-    //     path = "./test_data/index.m3u8";
-    // else
-    //     path = "./test_data" + req.get_path();
-    path = "./test_data/test_video.mp4";
-
+    std::string path {"./test_data/" + req.get_path()};
     std::vector<char> img = file_to_binary(path.data());
-    if(img.size() <= 0)
+    if(img.size() <= 0) 
+    {
+        response res;
+        res.set_code(400, "Bad Request");
+        std::string res_str = res.to_string();
+        conn->write<char>(res_str.data(), res_str.size());
         return;
+    }
 
     response res {req};
     res.set_header("Server", "localhost");
-    res.set_header("Content-Type", "video/mp4");
-    // res.set_header("Content-Type", "application/x-mpegurl");
+    res.set_header("Content-Type", "application/x-mpegurl");
 
     if(req.check_header("Range"))
     {
