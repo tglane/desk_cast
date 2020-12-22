@@ -11,9 +11,10 @@ extern "C"
     #include <libswscale/swscale.h>
 }
 
+const char* outfile_path = "./test_data/capture.mp4";
 const char* runtime_error_msg = "";
 
-static size_t find_video_stream(AVFormatContext* ctx)
+static int32_t find_video_stream(AVFormatContext* ctx)
 {
     for(size_t i = 0; i < ctx->nb_streams; i++)
     {
@@ -28,29 +29,60 @@ static size_t find_video_stream(AVFormatContext* ctx)
 void desktop_capture()
 {
     avdevice_register_all();
-    AVInputFormat* grab_format = av_find_input_format("x11grab"); // Do i have to delete this?
-    // AVFormatContext* grab_format_ctx = avformat_alloc_context();
-    std::unique_ptr<AVFormatContext, void(*)(AVFormatContext*)> grab_format_ctx {avformat_alloc_context(), [](AVFormatContext* ctx) { 
-        avformat_close_input(&ctx); 
-    }};
+    avcodec_register_all();
+    avdevice_register_all();
 
-    AVDictionary* options_ptr = nullptr;
-    // TODO Set options
 
-    AVFormatContext* format_ctx_ptr = grab_format_ctx.get();
-    // Check what to put in the url string ":0.0+10,20"
-    if(avformat_open_input(&format_ctx_ptr, ":0.0+10,20", grab_format, &options_ptr) != 0)
-    {
-        av_dict_free(&options_ptr);
+    // Init capture
+    AVFormatContext* format_ctx = avformat_alloc_context();
+    AVInputFormat* in_format = av_find_input_format("x11grab");
+    if(avformat_open_input(&format_ctx, ":0.0+10,250", in_format, nullptr) != 0)
         throw std::runtime_error {runtime_error_msg};
-    }
-    av_dict_free(&options_ptr);
 
-    if(avformat_find_stream_info(grab_format_ctx.get(), nullptr) < 0)
-        throw std::runtime_error {runtime_error_msg};
+    AVDictionary* options;
+    av_dict_set(&options, "framerate", "30", 0);
+    av_dict_set(&options, "preset", "medium", 0);
 
     // Find video stream in context
-    size_t video_idx = find_video_stream(grab_format_ctx.get());
-    AVCodec* codec = avcodec_find_decoder(grab_format_ctx->streams[video_idx]->codec->codec_id);
+    int32_t video_idx = find_video_stream(format_ctx);
+    if(video_idx == -1)
+        throw std::runtime_error {runtime_error_msg};
+    AVCodecContext* codec_ctx = format_ctx->streams[video_idx]->codec;
+    AVCodec* codec = avcodec_find_decoder(codec_ctx->codec_id);    
+    if(codec == nullptr || avcodec_open2(codec_ctx, codec, nullptr) < 0)
+        throw std::runtime_error {runtime_error_msg};
+
+    // Init output
+    AVFormatContext* out_format_ctx;
+    avformat_alloc_output_context2(&out_format_ctx, nullptr, nullptr, outfile_path);
+    AVOutputFormat* out_format = av_guess_format(nullptr, outfile_path, nullptr);
+    if(!out_format_ctx || !out_format)
+        throw std::runtime_error {runtime_error_msg};
+
+    AVStream* vid_stream = avformat_new_stream(out_format_ctx, nullptr);
+    AVCodec* out_codec;
+    AVCodecContext* out_codec_ctx = avcodec_alloc_context3(out_codec);
+    if(!out_format_ctx)
+        throw std::runtime_error {runtime_error_msg};
+
+    // Set properties of the out video file
+    // TODO find correct out file settings
+    out_codec_ctx = vid_stream->codec;
+    out_codec_ctx->codec_id = AV_CODEC_ID_MPEG4;
+    out_codec_ctx->codec_type = AVMEDIA_TYPE_VIDEO;
+    out_codec_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
+    out_codec_ctx->bit_rate = 400000;
+    out_codec_ctx->width = 2560;
+    out_codec_ctx->height = 1440;
+    out_codec_ctx->gop_size = 3;
+    out_codec_ctx->max_b_frames = 1;
+    out_codec_ctx->time_base.num = 1;
+    out_codec_ctx->time_base.den = 30; // 15fps
+
+
+    while(true)
+    {
+
+    }
 }
 
