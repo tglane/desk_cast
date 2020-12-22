@@ -1,7 +1,7 @@
-#include <dial_discovery.hpp>
+#include "dial_discovery.hpp"
 
-#include <socketwrapper/UDPSocket.hpp>
-#include <socketwrapper/TCPSocket.hpp>
+#include "socketwrapper/UDPSocket.hpp"
+#include "socketwrapper/TCPSocket.hpp"
 
 #include <memory>
 #include <thread>

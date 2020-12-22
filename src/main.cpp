@@ -3,16 +3,17 @@
 #include <future>
 #include <signal.h>
 
-#include <socketwrapper/UDPSocket.hpp>
-#include <socketwrapper/TCPSocket.hpp>
-#include <socketwrapper/SSLTCPSocket.hpp>
+#include "socketwrapper/UDPSocket.hpp"
+#include "socketwrapper/TCPSocket.hpp"
+#include "socketwrapper/SSLTCPSocket.hpp"
 
-#include <dial_discovery.hpp>
-#include <mdns_discovery.hpp>
-#include <cast_device.hpp>
-#include <cast_app.hpp>
+#include "dial_discovery.hpp"
+#include "mdns_discovery.hpp"
+#include "cast_device.hpp"
+#include "cast_app.hpp"
+#include "utils.hpp"
 
-#include <http/webserver.hpp>
+#include "http/webserver.hpp"
 
 // Set path to certificate and READEABLE key file used by the webserver and the cast device connector
 #define SSL_CERT "./cert.pem"
@@ -65,7 +66,7 @@ static void main_mdns()
     std::cout << "Received " << responses.size() << " responses from potential googlecast devices.\n";
     
     if(responses.size() == 0)
-        return;
+        return; // TODO Return/throw error
     
     std::vector<googlecast::cast_device> devices;
     devices.reserve(responses.size());
@@ -77,34 +78,31 @@ static void main_mdns()
     }
     std::cout << "\nSelect the device you want to connect to:\n>> ";
     std::cin >> select;
-
     if(0 > select || select >= devices.size())
         select = 0; // Default is 0
 
-
     googlecast::cast_device& dev = devices[select];
-    dev.close_app();
     if(!dev.connect())
-        return;
+        return; // TODO Return/throw error
 
+    std::string content_id;
     try {
-        googlecast::cast_app& app = dev.launch_app("CC1AD845");
-        if(!app.set_media())
-            return;
-    } catch(std::exception& e) {
-        std::cout << "[ERROR_LAUNCH_APP]:\n" << e.what() << '\n';
-        return;
+        content_id = "http://" + utils::get_local_ipaddr() + ":5770/index.m3u8";
+    } catch(std::runtime_error&) {
+        return; // TODO Return/throw error
     }
 
-    // JUST TO CHECK THE CONNECTION
-    // uint64_t cnt = 0;
-    // while(1)
-    // {
-    //     std::cout << dev.get_status().dump(2) << "\n--------------------------------------" << cnt << '\n' << std::endl;
-    //     cnt++;
-    //     std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-    // }
+    json media_payload;
+    media_payload["media"]["contentId"] = content_id;
+    media_payload["media"]["contentType"] = "application/x-mpegurl";
+    media_payload["media"]["streamType"] = "LIVE";
+    media_payload["type"] = "LOAD";
 
+    if(!dev.launch_app(googlecast::app_details {"CC1AD845", "", "", "", }, std::move(media_payload)))
+    {
+        std::cout << "Launch error" << std::endl;
+        return; // TODO Return/throw error
+    }
 }
 
 static void init_webserver(std::atomic<bool>& run_condition)

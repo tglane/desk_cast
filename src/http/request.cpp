@@ -1,4 +1,4 @@
-#include <http/request.hpp>
+#include "http/request.hpp"
 
 #include <charconv>
 
@@ -214,34 +214,31 @@ void request::parse_cookies(const std::string& cookies)
 bool request::check_header(const std::string& key) const
 {
     auto it = m_headers.find(key);
-    if(it == m_headers.end())
-        return false;
-    else
-        return true;
+    return it != m_headers.end();
 }
 
-std::string request::get_header(const std::string& key) const
+std::string_view request::get_header(const std::string& key) const
 {
     try {
-        return std::string {m_headers.at(key)};
+        return m_headers.at(key);
     } catch(std::out_of_range& e) {
         return "";
     }
 }
 
-std::string request::get_param(const std::string& key) const
+std::string_view request::get_param(const std::string& key) const
 {
     try {
-        return std::string {m_query_params.at(key)};
+        return m_query_params.at(key);
     } catch(std::out_of_range& e) {
         return "";
     }
 }
 
-std::string request::get_post_param(const std::string& key) const
+std::string_view request::get_post_param(const std::string& key) const
 {
     try {
-        return std::string {m_body_params.at(key)};
+        return m_body_params.at(key);
     } catch(std::out_of_range& e) {
         return "";
     }

@@ -1,7 +1,6 @@
 #ifndef HTTP_RESPONSE_HPP
 #define HTTP_RESPONSE_HPP
 
-#include <socketwrapper/TCPSocket.hpp>
 #include <string>
 #include <map>
 #include <memory>
@@ -10,7 +9,8 @@
 #include <exception>
 #include <mutex>
 
-#include <http/request.hpp>
+#include "socketwrapper/TCPSocket.hpp"
+#include "http/request.hpp"
 
 namespace http
 {

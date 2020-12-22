@@ -1,6 +1,6 @@
-#include <mdns_discovery.hpp>
+#include "mdns_discovery.hpp"
 
-#include <socketwrapper/UDPSocket.hpp>
+#include "socketwrapper/UDPSocket.hpp"
 
 #include <memory>
 #include <thread>
