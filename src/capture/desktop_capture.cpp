@@ -13,6 +13,18 @@ extern "C"
 
 const char* runtime_error_msg = "";
 
+static size_t find_video_stream(AVFormatContext* ctx)
+{
+    for(size_t i = 0; i < ctx->nb_streams; i++)
+    {
+        // grab_format_ctx->streams[i]->codecpar->codec_id
+        if(ctx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO)
+            return i;
+    }
+    
+    throw std::runtime_error {runtime_error_msg};
+}
+
 void desktop_capture()
 {
     avdevice_register_all();
@@ -30,7 +42,7 @@ void desktop_capture()
     if(avformat_open_input(&format_ctx_ptr, ":0.0+10,20", grab_format, &options_ptr) != 0)
     {
         av_dict_free(&options_ptr);
-        throw std::runtime_error{runtime_error_msg};
+        throw std::runtime_error {runtime_error_msg};
     }
     av_dict_free(&options_ptr);
 
@@ -38,14 +50,7 @@ void desktop_capture()
         throw std::runtime_error {runtime_error_msg};
 
     // Find video stream in context
-    for(int32_t i = 0; i < grab_format_ctx->nb_streams; i++)
-    {
-        // AVCodec* codec = avcodec_find_decoder(grab_format_ctx->streams[i]->codecpar->codec_id);
-
-        if(grab_format_ctx->streams[i]->codecpar->codec_id == AVMEDIA_TYPE_VIDEO)
-        {
-            // Found video stream
-        }
-    }
+    size_t video_idx = find_video_stream(grab_format_ctx.get());
+    AVCodec* codec = avcodec_find_decoder(grab_format_ctx->streams[video_idx]->codec->codec_id);
 }
 
