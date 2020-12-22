@@ -48,10 +48,15 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
         return;
     }
 
-    std::cout << "[DEBUG]:\n" << req.to_string() << std::endl;
+    // std::cout << "[DEBUG]:\n" << req.to_string() << std::endl;
 
     // Read file
-    std::string path {"./test_data/" + req.get_path()};
+    std::string_view pv = req.get_path();
+    std::string path;
+    path.resize(12 + pv.size());
+    std::memcpy(path.data(), "./test_data", 11);
+    std::memcpy(path.data() + 11, pv.data(), pv.size());
+
     std::vector<char> img = file_to_binary(path.data());
     if(img.size() <= 0) 
     {
