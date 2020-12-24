@@ -34,6 +34,4 @@ $(PROTODIR)/%.pb.cc: $(PROTODIR)/%.proto
 
 .PHONY: clean
 clean:
-	rm ./$(APPNAME)
 	rm -rf $(OBJDIR)/*.o
-
