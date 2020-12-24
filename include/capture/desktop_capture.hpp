@@ -16,6 +16,7 @@ namespace capture
 {
 
 extern const char* runtime_error_msg;
+
 size_t find_video_stream(AVFormatContext*);
 
 template<AVCodecID CODEC_ID>

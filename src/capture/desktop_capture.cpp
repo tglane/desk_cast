@@ -16,6 +16,4 @@ size_t find_video_stream(AVFormatContext* ctx)
     throw std::runtime_error {runtime_error_msg};
 }
 
-
-
 } // namespace capture
