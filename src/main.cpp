@@ -15,6 +15,8 @@
 
 #include "http/webserver.hpp"
 
+#include "capture/desktop_capture.hpp"
+
 // Set path to certificate and READEABLE key file used by the webserver and the cast device connector
 #define SSL_CERT "./cert.pem"
 #define SSL_KEY "./key.pem"
