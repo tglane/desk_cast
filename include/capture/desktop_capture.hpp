@@ -15,43 +15,43 @@ extern "C"
 namespace capture
 {
 
-    extern const char* runtime_error_msg;
-    size_t find_video_stream(AVFormatContext*);
+extern const char* runtime_error_msg;
+size_t find_video_stream(AVFormatContext*);
 
-    template<AVCodecID CODEC_ID>
-    class recorder
-    {
-    public:
+template<AVCodecID CODEC_ID>
+class recorder
+{
+public:
 
-        recorder(const std::string& outfile_path);
+    recorder(const std::string& outfile_path);
 
-        ~recorder();
+    ~recorder();
 
-        void start_recording() const;
+    void start_recording() const;
 
-        void stop_recording() const;
+    void stop_recording() const;
 
-    private:
+private:
 
-        void init();
+    void init();
 
-        std::string m_outfile_path;
+    std::string m_outfile_path;
 
-        AVInputFormat* m_in_format = nullptr;
-        AVOutputFormat* m_out_format = nullptr;
+    AVInputFormat* m_in_format = nullptr;
+    AVOutputFormat* m_out_format = nullptr;
 
-        AVCodecContext* m_codec_ctx = nullptr;
-        AVFormatContext* m_format_ctx = nullptr;
-        AVCodec* m_codec = nullptr;
+    AVCodecContext* m_codec_ctx = nullptr;
+    AVFormatContext* m_format_ctx = nullptr;
+    AVCodec* m_codec = nullptr;
 
-        AVOutputFormat* out_format_hmm = nullptr;
-        AVFormatContext* m_out_format_ctx = nullptr;
-        AVCodecContext* m_out_codec_ctx = nullptr;
-        AVCodec* m_out_codec = nullptr;
+    AVOutputFormat* out_format_hmm = nullptr;
+    AVFormatContext* m_out_format_ctx = nullptr;
+    AVCodecContext* m_out_codec_ctx = nullptr;
+    AVCodec* m_out_codec = nullptr;
 
-        AVStream* m_vid_stream = nullptr;
+    AVStream* m_vid_stream = nullptr;
 
-    };
+};
 
 
 template<AVCodecID CODEC_ID>
