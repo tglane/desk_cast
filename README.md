@@ -19,7 +19,13 @@ TODOs:
 ------
 * Correctly close connection to chromecast on error or exit
 * Sometimes the same cast device is listed multiple times. Make sure that one devices only shows up once.
-* Make sure the webserver can serve HLS streams correctly.
-* Caputre the screen (on linux via x11-grab device) with ffmpeg lib.
-* Create HLS stream from screen capture and serve this via the webserver.
+* Caputre the screen (on linux via x11-grab device) with ffmpeg lib as HLS stream (see problems down below in notes section)
 * Create a virtual display and capture this.
+
+Notes:
+------
+* Last 5 files from HLS stream are used as buffer. Delete all other files in a garbage collecting thread
+* Recorder is not working correctly (the frames are not written into the mp4 file) and also not recording as HLS stream
+    * Used ffmpeg cli to test and find correct settings. Current command to create HLS stream: 
+        ffmpeg -f x11grab -video_size 1920x1080 -r 30 -i :0 -c:v h264 -level:v 4.1 -f hls -hls_time 1 -g 15 stream.m3u8 -f lavfi -i anullsrc
+        Problems: Working with normal HLS player but producing endless black screen on chromecast

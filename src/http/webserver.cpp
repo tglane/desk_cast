@@ -53,7 +53,7 @@ static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
     // Read file
     std::string_view pv = req.get_path();
     std::string path;
-    path.resize(12 + pv.size());
+    path.resize(11 + pv.size());
     std::memcpy(path.data(), "./test_data", 11);
     std::memcpy(path.data() + 11, pv.data(), pv.size());
 

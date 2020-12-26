@@ -89,7 +89,7 @@ static void main_mdns()
 
     std::string content_id;
     try {
-        content_id = "http://" + utils::get_local_ipaddr() + ":5770/index.m3u8";
+        content_id = "http://" + utils::get_local_ipaddr() + ":5770/stream.m3u8";
     } catch(std::runtime_error&) {
         return; // TODO Return/throw error
     }
@@ -111,11 +111,6 @@ static void init_webserver(std::atomic<bool>& run_condition)
 {
     http::webserver server {WEBSERVER_PORT, SSL_CERT, SSL_KEY};
     server.serve(run_condition);
-}
-
-static void init_capture(std::atomic<bool>& run_condition)
-{
-    std::cout << "recorder initialized" << std::endl;
 }
 
 static void block_signals(sigset_t* sigset)
@@ -154,19 +149,18 @@ int main()
     // -> Launch the app on the selected device in main thread
 
 
-    capture::recorder<AVCodecID::AV_CODEC_ID_MPEG4> recorder {"./test_data/capture.mp4"};
-    recorder.start_recording();
+    // capture::recorder<AVCodecID::AV_CODEC_ID_MPEG4> recorder {"./test_data/stream.mp4"}; // TODO change to stream.m3u8
+    // recorder.start_recording();
 
     std::vector<std::future<void>> worker;
     worker.reserve(3);
     worker.push_back(std::async(std::launch::async, init_webserver, std::ref(run_condition)));
     // worker.push_back(std::async(std::launch::async, main_dial));
     worker.push_back(std::async(std::launch::async, main_mdns));
-    worker.push_back(std::async(std::launch::async, init_capture, std::ref(run_condition)));
 
     // Wait for signal and shut down all threads
     int signal = signal_handler.get();
-    recorder.stop_recording();
+    // recorder.stop_recording();
     for(auto& fut : worker)
     {
         fut.get();
