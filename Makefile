@@ -3,7 +3,7 @@ CC := clang++
 PROTOC := protoc
 
 CFLAGS := -std=c++17 -Iinclude -fpic -O3
-LDFLAGS := -L./lib -lsocketwrapper -lpthread -lcrypto -lssl -lprotobuf -lavcodec -lavformat -lavdevice -lavutil
+LDFLAGS := -L./lib -lsocketwrapper -lpthread -lcrypto -lssl -lprotobuf -lavcodec -lavformat -lavdevice -lswscale -lavutil
 
 APPNAME = desk_cast
 
@@ -35,3 +35,4 @@ $(PROTODIR)/%.pb.cc: $(PROTODIR)/%.proto
 .PHONY: clean
 clean:
 	rm -rf $(OBJDIR)/*.o
+	rm ${APPNAME}

@@ -1,12 +1,11 @@
 #include "capture/desktop_capture.hpp"
 
-
 namespace capture
 {
 
 const char* runtime_error_msg = "Unable to initialize recorder";
 
-size_t find_video_stream(AVFormatContext* ctx)
+size_t find_videostream_in_format(AVFormatContext* ctx)
 {
     for(size_t i = 0; i < ctx->nb_streams; i++)
     {

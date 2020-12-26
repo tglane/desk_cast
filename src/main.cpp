@@ -115,12 +115,6 @@ static void init_webserver(std::atomic<bool>& run_condition)
 
 static void init_capture(std::atomic<bool>& run_condition)
 {
-    try {
-        capture::recorder<AVCodecID::AV_CODEC_ID_MPEG4> recorder {"./test_data/capture.mp4"};
-        recorder.start_recording();
-    } catch(std::runtime_error& e) {
-        std::cout << e.what() << std::endl;
-    }
     std::cout << "recorder initialized" << std::endl;
 }
 
@@ -160,6 +154,9 @@ int main()
     // -> Launch the app on the selected device in main thread
 
 
+    capture::recorder<AVCodecID::AV_CODEC_ID_MPEG4> recorder {"./test_data/capture.mp4"};
+    recorder.start_recording();
+
     std::vector<std::future<void>> worker;
     worker.reserve(3);
     worker.push_back(std::async(std::launch::async, init_webserver, std::ref(run_condition)));
@@ -169,6 +166,7 @@ int main()
 
     // Wait for signal and shut down all threads
     int signal = signal_handler.get();
+    recorder.stop_recording();
     for(auto& fut : worker)
     {
         fut.get();
