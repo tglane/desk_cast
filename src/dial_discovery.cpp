@@ -64,7 +64,7 @@ std::vector<ssdp_res> upnp_discovery()
             {
                 std::unique_ptr<char[]> buffer = d_sock.receive<char>(d_sock.bytes_available(), nullptr);
 
-                responses.push_back(std::move(parse_request(buffer.get())));
+                responses.push_back(parse_request(buffer.get()));
             }
         }
     });

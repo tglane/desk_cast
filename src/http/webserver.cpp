@@ -24,7 +24,7 @@ static std::vector<char> file_to_binary(std::string_view path)
         (std::istreambuf_iterator<char>())};
 }
 
-static void handle_connection(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
+static void serve_hls_stream(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
 {
     // TODO improve connection handling
     size_t wait_cnt = 0;
@@ -122,9 +122,9 @@ void webserver::serve(std::atomic<bool>& run_condition)
             // Because this webserver only serves one client, here we dont need
             // more than one thread handling requests at the moment
 
-            // TODO parse req here and go to correct route handler
+            // TODO Parse request here and go to correct service function when supoorting multiple protocols
 
-            handle_connection(m_sock.accept());
+            serve_hls_stream(m_sock.accept());
         } catch(socketwrapper::SocketAcceptingException&) {}
     }
 

@@ -1,6 +1,6 @@
 #include <iostream>
 #include <memory>
-#include <future>
+#include <thread>
 #include <signal.h>
 
 #include "socketwrapper/UDPSocket.hpp"
@@ -9,8 +9,8 @@
 
 #include "dial_discovery.hpp"
 #include "mdns_discovery.hpp"
+#include "device.hpp"
 #include "cast_device.hpp"
-#include "cast_app.hpp"
 #include "utils.hpp"
 
 #include "http/webserver.hpp"
@@ -20,6 +20,28 @@
 #define SSL_KEY "./key.pem"
 
 #define WEBSERVER_PORT 5770
+
+static std::vector<std::unique_ptr<device>> get_devices()
+{
+    std::vector<std::unique_ptr<device>> devices;
+
+    // Get googlecast devices via mdns request
+    std::vector<discovery::mdns_res> mdns = discovery::mdns_discovery("_googlecast._tcp.local");
+    if(mdns.size() > 0)
+    {
+        devices.reserve(devices.size() + mdns.size());
+        for(size_t i = 0; i < mdns.size(); i++)
+            devices.push_back(std::make_unique<googlecast::cast_device>(mdns[i], std::string_view {SSL_CERT}, std::string_view {SSL_KEY}));
+    }
+
+    return devices;
+}
+
+static bool launch_app_on_device(device& dev, std::string_view app_id)
+{
+    // TODO
+    return true;
+}
 
 static void main_dial() 
 {
@@ -73,7 +95,7 @@ static void main_mdns()
     uint32_t select;
     for(size_t i = 0; i < responses.size(); i++)
     {
-        googlecast::cast_device& dev = devices.emplace_back(responses[i], SSL_CERT, SSL_KEY);
+        googlecast::cast_device& dev = devices.emplace_back(responses[i], std::string_view {SSL_CERT}, std::string_view {SSL_KEY});
         std::cout << i << " | " << dev.get_name() << '\n';
     }
     std::cout << "\nSelect the device you want to connect to:\n>> ";
@@ -98,11 +120,13 @@ static void main_mdns()
     media_payload["media"]["streamType"] = "LIVE";
     media_payload["type"] = "LOAD";
 
-    if(!dev.launch_app(googlecast::app_details {"CC1AD845", "", "", "", }, std::move(media_payload)))
+    if(!dev.launch_app("CC1AD845", std::move(media_payload)))
     {
         std::cout << "Launch error" << std::endl;
         return; // TODO Return/throw error
     }
+
+    std::cout << "Launched" << std::endl;
 }
 
 static void init_webserver(std::atomic<bool>& run_condition)
@@ -135,30 +159,32 @@ int main()
         // TODO Change to async I/O
         // Quick and dirty to stop waiting for accept in the web server
         socketwrapper::TCPSocket sock {AF_INET};
-        sock.connect(WEBSERVER_PORT, "127.0.0.1");
+        try {
+            sock.connect(WEBSERVER_PORT, "127.0.0.1");
+        } catch(socketwrapper::SocketConnectingException& e) {}
 
         return signum;
     });
 
     // TODO Split up code
+    // -> Create condition to close app...
     // -> Use main_dial/main_mdns to get the device to connect to
     // -> When we have a device, launch screenrecorder in background thread (not implemented yet) (loop)
     // -> Launch webserver serving the cast devices in background thread (loop)
     // -> Launch the app on the selected device in main thread
 
-
-    std::vector<std::future<void>> worker;
+    std::vector<std::thread> worker;
     worker.reserve(3);
-    worker.push_back(std::async(std::launch::async, init_webserver, std::ref(run_condition)));
-    // worker.push_back(std::async(std::launch::async, main_dial));
-    worker.push_back(std::async(std::launch::async, main_mdns));
-    // worker.push_back(std::async(std::launch::async, init_capture, std::ref(run_condition)));
+    worker.emplace_back(init_webserver, std::ref(run_condition));
+    worker.emplace_back(main_mdns);
+    worker.emplace_back(main_dial);
+    // worker.emplace_back(init_capture, std::ref(run_condition));
 
     // Wait for signal and shut down all threads
     int signal = signal_handler.get();
-    for(auto& fut : worker)
+    for(auto& t : worker)
     {
-        fut.get();
+        t.join();
         std::cout << "Worker returned" << std::endl;
     }
 

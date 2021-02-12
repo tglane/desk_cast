@@ -5,23 +5,23 @@
 #include <string>
 #include <string_view>
 #include <map>
-#include <deque>
 #include <future>
 #include <atomic>
+#include <mutex>
+#include <condition_variable>
 
 #include "../protos/cast_channel.pb.h"
 #include "socketwrapper/SSLTCPSocket.hpp"
 #include "json.hpp"
+#include "device.hpp"
 #include "mdns_discovery.hpp"
-#include "cast_app.hpp"
 
 using extensions::core_api::cast_channel::CastMessage;
 using nlohmann::json;
+using cast_message = extensions::core_api::cast_channel::CastMessage;
 
 namespace googlecast
 {
-
-class receiver;
 
 struct app_details
 {
@@ -34,9 +34,17 @@ struct app_details
     {
         return (!id.empty() && !transport_id.empty() && !session_id.empty());
     }
+
+    void clear()
+    {
+        id.clear();
+        session_id.clear();
+        transport_id.clear();
+        namespaces.clear();
+    }
 };
 
-class cast_device
+class cast_device : public device
 {
 public:
 
@@ -44,26 +52,26 @@ public:
     cast_device(const cast_device&) = delete;
     cast_device& operator=(const cast_device&) = delete;
     cast_device(cast_device&& other);
-    cast_device& operator=(cast_device&& other) = default;
+    cast_device& operator=(cast_device&& other);
     ~cast_device();
 
-    cast_device(const discovery::mdns_res& res, const char* ssl_cert, const char* ssl_key);
+    cast_device(const discovery::mdns_res& res, std::string_view ssl_cert, std::string_view ssl_key);
     
     bool connect();
 
-    bool disonnect();
+    bool disconnect();
 
     bool app_available(std::string_view app_id) const;
 
-    bool launch_app(app_details&& launch_details, json&& launch_payload);
+    bool launch_app(std::string_view app_id, json&& launch_payload);
 
     void close_app();
 
-    /// TODO
     bool volume_up();
+
     bool volume_down();
+
     bool toggle_mute();
-    ///
 
     json get_status() const;
 
@@ -83,35 +91,40 @@ private:
 
     bool send_json(const std::string_view nspace, json payload, const std::string_view dest_id = "receiver-0") const
     {
-        return send(nspace, payload.dump(), dest_id);
+        return send(nspace, std::string_view {payload.dump()}, dest_id);
     }
 
-    json read(uint32_t request_id) const;
+    json send_recv(const std::string_view nspace, const json& payload, const std::string_view dest_id = "receiver-0") const;
 
+    /// Private member variables
 
-    std::future<void> m_heartbeat;                  // Future to store async function sending a heartbeat signal
+    socketwrapper::SSLTCPSocket m_sock;
 
-    std::unique_ptr<receiver> m_receiver;           // Utility class to wait for responses of the connected cast device
+    std::future<void> m_heartbeat;
 
-    std::shared_ptr<socketwrapper::SSLTCPSocket> m_sock_ptr;
+    std::future<void> m_recv_loop;
 
-    std::atomic<bool> m_connected = ATOMIC_VAR_INIT(false);
+    using cond_ptr = std::unique_ptr<std::condition_variable>;
+    mutable std::map<uint64_t, std::pair<cond_ptr, json>> m_msg_store;
+
+    mutable std::mutex m_msg_mutex;
 
     app_details m_active_app;
+
+    std::atomic<bool> m_connected = ATOMIC_VAR_INIT(false);
 
     std::string m_name;                             // From PTR record
 
     std::string m_target;                           // From SRV record
 
-    uint32_t m_port;                                // From SRV record
+    std::map<std::string, std::string> m_txt;       // From TXT record
 
     std::string m_ip;                               // From A record
 
-    std::map<std::string, std::string> m_txt;       // From TXT record
+    uint32_t m_port;                                // From SRV record
 
     mutable uint64_t m_request_id = 0;              // Up counting id to identify requests and responses
 
-    friend class cast_app;
 };
 
 } // namespace googlecast

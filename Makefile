@@ -1,8 +1,8 @@
-# CC := g++
-CC := clang++
+CC := g++
+# CC := clang++
 PROTOC := protoc
 
-CFLAGS := -std=c++17 -Iinclude -fpic -O3
+CFLAGS := -std=c++17 -Iinclude -fpic -O3 -Werror -Wall -pedantic -Wno-unused
 LDFLAGS := -L./lib -lsocketwrapper -lpthread -lcrypto -lssl -lprotobuf -lavcodec -lavformat -lavdevice -lavutil
 
 APPNAME = desk_cast

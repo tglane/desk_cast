@@ -15,6 +15,7 @@
 
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/select.h>
 #include <netinet/in.h> //for struct sockaddr_in
 #include <netdb.h> //for struct addrinfo
 #include <unistd.h> //for close(), ...
@@ -31,6 +32,8 @@ class BaseSocket
 {
 
 public:
+
+    enum class socket_state { SHUT, CLOSED, CREATED, BOUND };
 
     BaseSocket() = delete;
 
@@ -72,7 +75,7 @@ protected:
 
     BaseSocket(int family, int sock_type);
 
-    BaseSocket(int family, int sock_type, int socket_fd, sockaddr_in own_addr, int state);
+    BaseSocket(int socket_fd, int family, int sock_type, sockaddr_in own_addr, socket_state state);
 
     BaseSocket(BaseSocket&& other);
 
@@ -91,16 +94,14 @@ protected:
 
     mutable std::mutex m_mutex;
 
-    sockaddr_in m_sockaddr_in;
-
     int m_sockfd;
 
-    int m_socktype;
     int m_family;
+    int m_socktype;
 
-    int m_socket_state;
-    enum socket_state {SHUT, CLOSED, CREATED, BOUND};
+    sockaddr_in m_sockaddr_in;
 
+    socket_state m_socket_state;
 };
 
 }

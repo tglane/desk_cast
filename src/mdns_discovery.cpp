@@ -58,9 +58,9 @@ struct dns_query
 
 static void to_dns_name_format(char* dns, std::string_view host)
 {
-    int lock = 0;
+    size_t lock = 0;
      
-    for(int i = 0; i <= host.size(); i++)
+    for(size_t i = 0; i <= host.size(); i++)
     {
         if(i == host.size() || host[i] == '.')
         {
@@ -117,7 +117,7 @@ static mdns_res parse_mdns_answer(std::vector<char>& buffer)
         b_stream.ignore(sizeof(dns_header));
 
         // Parse records
-        for(size_t i = 0; i < (ntohs(dns->ans_count) + ntohs(dns->auth_count) + ntohs(dns->add_count)); i++)
+        for(int i = 0; i < (ntohs(dns->ans_count) + ntohs(dns->auth_count) + ntohs(dns->add_count)); i++)
         {
             uint16_t u16;
             mdns_record& rec = result.records.emplace_back();
