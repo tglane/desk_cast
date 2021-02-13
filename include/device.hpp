@@ -19,11 +19,9 @@ public:
 
     virtual bool launch_app(std::string_view, json&&) = 0;
 
-    virtual bool volume_up() = 0;
+    virtual bool set_volume(double level) = 0;
 
-    virtual bool volume_down() = 0;
-
-    virtual bool toggle_mute() = 0;
+    virtual bool set_muted(bool muted) = 0;
 
     virtual const std::string& get_name() const = 0;
 };

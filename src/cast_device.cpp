@@ -253,21 +253,31 @@ void cast_device::close_app()
         send(namespace_connection, R"({ "type": "CLOSE" })", m_active_app.transport_id);
 }
 
-bool cast_device::volume_up()
+bool cast_device::set_volume(double level)
 {
-    // TODO
+    if(!m_connected)
+        return false;
+
+    json msg;
+    msg["type"] = "SET_VOLUME";
+    msg["requestId"] = ++m_request_id;
+    msg["volume"] = json {"level", level};
+
+    send_json(namespace_receiver, msg);
     return true;
 }
 
-bool cast_device::volume_down()
+bool cast_device::set_muted(bool muted)
 {
-    // TODO
-    return true;
-}
+    if(!m_connected)
+        return false;
 
-bool cast_device::toggle_mute()
-{
-    // TODO
+    json msg;
+    msg["type"] = "SET_VOLUME";
+    msg["requestId"] = ++m_request_id;
+    msg["volume"] = json {"muted", muted};
+
+    send_json(namespace_receiver, msg);
     return true;
 }
 

@@ -16,7 +16,6 @@
 #include "device.hpp"
 #include "mdns_discovery.hpp"
 
-using extensions::core_api::cast_channel::CastMessage;
 using nlohmann::json;
 using cast_message = extensions::core_api::cast_channel::CastMessage;
 
@@ -67,11 +66,9 @@ public:
 
     void close_app();
 
-    bool volume_up();
+    bool set_volume(double level);
 
-    bool volume_down();
-
-    bool toggle_mute();
+    bool set_muted(bool muted);
 
     json get_status() const;
 

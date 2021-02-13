@@ -36,4 +36,3 @@ $(PROTODIR)/%.pb.cc: $(PROTODIR)/%.proto
 clean:
 	rm ./$(APPNAME)
 	rm -rf $(OBJDIR)/*.o
-
