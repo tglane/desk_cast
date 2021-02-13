@@ -25,6 +25,8 @@ static std::vector<std::unique_ptr<device>> get_devices()
 {
     std::vector<std::unique_ptr<device>> devices;
 
+    // TODO Extend this to get all device types available
+
     // Get googlecast devices via mdns request
     std::vector<discovery::mdns_res> mdns = discovery::mdns_discovery("_googlecast._tcp.local");
     if(mdns.size() > 0)
@@ -37,10 +39,35 @@ static std::vector<std::unique_ptr<device>> get_devices()
     return devices;
 }
 
-static bool launch_app_on_device(device& dev, std::string_view app_id)
+static device_ptr& select_device(std::vector<device_ptr>& devices)
 {
-    // TODO
-    return true;
+    size_t selected;
+    for(size_t i = 0; i < devices.size(); i++)
+    {
+        std::cout << i << " | " << devices[i]->get_name() << '\n';
+    }
+    std::cout << "\nSelect the device you want to connect to:\n>> ";
+    std::cin >> selected;
+    if(0 > selected || selected >= devices.size())
+        selected = 0; // Default selection
+
+    return devices[selected];
+}
+
+static bool launch_app_on_device(device& dev)
+{
+    // TODO Change this to work with all device types
+    json media_payload;
+    try {
+        media_payload["media"]["contentId"] = "http://" + utils::get_local_ipaddr() + ":5770/index.m3u8";
+        media_payload["media"]["contentType"] = "application/x-mpegurl";
+        media_payload["media"]["streamType"] = "LIVE";
+        media_payload["type"] = "LOAD";
+    } catch(std::runtime_error&) {
+        return false;
+    }
+
+    return dev.launch_app("CC1AD845", std::move(media_payload));
 }
 
 static void main_dial() 
@@ -81,60 +108,6 @@ static void main_dial()
     }
 }
 
-static void main_mdns()
-{
-    std::cout << "Searching for casteable devices in your local network...\n";
-    std::vector<discovery::mdns_res> responses = discovery::mdns_discovery("_googlecast._tcp.local");
-    std::cout << "Received " << responses.size() << " responses from potential googlecast devices.\n";
-    
-    if(responses.size() == 0)
-        return; // TODO Return/throw error
-    
-    std::vector<googlecast::cast_device> devices;
-    devices.reserve(responses.size());
-    uint32_t select;
-    for(size_t i = 0; i < responses.size(); i++)
-    {
-        googlecast::cast_device& dev = devices.emplace_back(responses[i], std::string_view {SSL_CERT}, std::string_view {SSL_KEY});
-        std::cout << i << " | " << dev.get_name() << '\n';
-    }
-    std::cout << "\nSelect the device you want to connect to:\n>> ";
-    std::cin >> select;
-    if(0 > select || select >= devices.size())
-        select = 0; // Default is 0
-
-    googlecast::cast_device& dev = devices[select];
-    if(!dev.connect())
-        return; // TODO Return/throw error
-
-    std::string content_id;
-    try {
-        content_id = "http://" + utils::get_local_ipaddr() + ":5770/index.m3u8";
-    } catch(std::runtime_error&) {
-        return; // TODO Return/throw error
-    }
-
-    json media_payload;
-    media_payload["media"]["contentId"] = content_id;
-    media_payload["media"]["contentType"] = "application/x-mpegurl";
-    media_payload["media"]["streamType"] = "LIVE";
-    media_payload["type"] = "LOAD";
-
-    if(!dev.launch_app("CC1AD845", std::move(media_payload)))
-    {
-        std::cout << "Launch error" << std::endl;
-        return; // TODO Return/throw error
-    }
-
-    std::cout << "Launched" << std::endl;
-}
-
-static void init_webserver(std::atomic<bool>& run_condition)
-{
-    http::webserver server {WEBSERVER_PORT, SSL_CERT, SSL_KEY};
-    server.serve(run_condition);
-}
-
 static void block_signals(sigset_t* sigset)
 {
     sigemptyset(sigset);
@@ -148,7 +121,6 @@ int main()
     sigset_t sigset;
     std::atomic<bool> run_condition {true};
     block_signals(&sigset);
-
     std::future<int> signal_handler = std::async(std::launch::async, [&run_condition, &sigset]()
     {
         int signum = 0;
@@ -173,12 +145,31 @@ int main()
     // -> Launch webserver serving the cast devices in background thread (loop)
     // -> Launch the app on the selected device in main thread
 
+    std::vector<device_ptr> device_list = get_devices();
+    if(device_list.size() == 0)
+    {
+        std::cout << "No devices found...\nPress Ctrl+C to exit.\n";
+        signal_handler.get();
+        return EXIT_SUCCESS;
+    }
+
+    device_ptr& device = select_device(device_list);
+    if(!device->connect())
+    {
+        std::cout << "Connection failed...\nPress Ctrl+C to exit.\n";
+        signal_handler.get();
+        return EXIT_FAILURE;
+    }
+
     std::vector<std::thread> worker;
-    worker.reserve(3);
-    worker.emplace_back(init_webserver, std::ref(run_condition));
-    worker.emplace_back(main_mdns);
-    worker.emplace_back(main_dial);
+    worker.reserve(2);
+    worker.emplace_back([&run_condition]() {
+        http::webserver server {WEBSERVER_PORT, SSL_CERT, SSL_KEY};
+        server.serve(run_condition);
+    });
     // worker.emplace_back(init_capture, std::ref(run_condition));
+
+    std::cout << (launch_app_on_device(*device) ? "Launched" : "Launch error") << std::endl;
 
     // Wait for signal and shut down all threads
     int signal = signal_handler.get();
