@@ -9,16 +9,6 @@
 #include <chrono>
 #include <stdexcept>
 
-#include <iostream>
-
-constexpr uint8_t LOCATION_LEN = 8;
-constexpr uint8_t CACHE_CONTROL_LEN = 13;
-constexpr uint8_t EXT_LEN = 3;
-constexpr uint8_t SERVER_LEN = 6;
-constexpr uint8_t USN_LEN = 3;
-constexpr uint8_t SN_LEN = 2;
-constexpr uint8_t WAKEUP_LEN = 6;
-
 namespace discovery
 {
 
