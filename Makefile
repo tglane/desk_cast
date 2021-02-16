@@ -1,5 +1,4 @@
 CC := g++
-# CC := clang++
 PROTOC := protoc
 
 CFLAGS := -std=c++17 -Iinclude -fpic -O3 -Werror -Wall -pedantic -Wno-unused

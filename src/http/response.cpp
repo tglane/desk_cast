@@ -1,12 +1,18 @@
+#include "http/response.hpp"
+
 #include <fstream>
 #include <sstream>
-
-#include "http/response.hpp"
 
 namespace http
 {
 
 std::mutex response::c_file_mutex;
+
+response::response(std::string_view buffer)
+    : m_req {}
+{
+
+}
 
 static std::string get_http_phrase(int status_code)
 {

@@ -17,6 +17,21 @@ static constexpr const char* namespace_auth = "urn:x-cast:com.google.cast.tp.dev
 namespace googlecast
 {
 
+bool start_live_stream(cast_device& dev, std::string_view content_url)
+{
+    json media_payload;
+    try {
+        media_payload["media"]["contentId"] = content_url;
+        media_payload["media"]["contentType"] = "application/x-mpegurl";
+        media_payload["media"]["streamType"] = "LIVE";
+        media_payload["type"] = "LOAD";
+    } catch(std::runtime_error&) {
+        return false;
+    }
+
+    return dev.launch_app("CC1AD845", std::move(media_payload));
+}
+
 cast_device::cast_device(const discovery::mdns_res& res, std::string_view ssl_cert, std::string_view ssl_key)
     : m_sock {AF_INET, ssl_cert.data(), ssl_key.data()}
 {

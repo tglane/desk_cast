@@ -2,6 +2,7 @@
 #define HTTP_RESPONSE_HPP
 
 #include <string>
+#include <string_view>
 #include <map>
 #include <memory>
 #include <list>
@@ -24,6 +25,8 @@ public:
     explicit response(const request& req) 
         : m_req {req}
     {}
+
+    explicit response(std::string_view buffer);
 
     std::string to_string();
 

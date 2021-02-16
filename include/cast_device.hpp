@@ -22,6 +22,7 @@ using cast_message = extensions::core_api::cast_channel::CastMessage;
 namespace googlecast
 {
 
+
 struct app_details
 {
     std::string id;
@@ -123,6 +124,8 @@ private:
     mutable uint64_t m_request_id = 0;              // Up counting id to identify requests and responses
 
 };
+
+bool start_live_stream(cast_device& dev, std::string_view content_url);
 
 } // namespace googlecast
 

@@ -7,7 +7,7 @@
 #include "socketwrapper/TCPSocket.hpp"
 #include "socketwrapper/SSLTCPSocket.hpp"
 
-#include "dial_discovery.hpp"
+#include "ssdp_discovery.hpp"
 #include "mdns_discovery.hpp"
 #include "device.hpp"
 #include "cast_device.hpp"
@@ -54,46 +54,29 @@ static device_ptr& select_device(std::vector<device_ptr>& devices)
     return devices[selected];
 }
 
-static bool launch_app_on_device(device& dev)
+static bool launch_app_on_device(device* dev)
 {
     // TODO Change this to work with all device types
-    json media_payload;
-    try {
-        media_payload["media"]["contentId"] = "http://" + utils::get_local_ipaddr() + ":5770/index.m3u8";
-        media_payload["media"]["contentType"] = "application/x-mpegurl";
-        media_payload["media"]["streamType"] = "LIVE";
-        media_payload["type"] = "LOAD";
-    } catch(std::runtime_error&) {
-        return false;
-    }
-
-    return dev.launch_app("CC1AD845", std::move(media_payload));
+    return googlecast::start_live_stream(*static_cast<googlecast::cast_device*>(dev), "http://" + utils::get_local_ipaddr() + ":5770/index.m3u8");
 }
 
 static void main_dial() 
 {
-    std::vector<discovery::ssdp_res> responses = discovery::upnp_discovery();
+    // std::vector<discovery::ssdp_res> responses = discovery::ssdp("urn:schemas-upnp-org:device:MediaServer:1");
+    std::vector<discovery::ssdp_res> responses = discovery::ssdp("urn:schemas-upnp-org:device:MediaRenderer:1");
     for(const auto& it : responses)
     {
-        std::cout << "--------------------\n";
-        for(const auto& mit : it)
-            std::cout << mit.first << " => " << mit.second << '\n';
-        std::cout << "--------------------\n" << std::endl;
-
-        std::string addr;
-        std::string path;
-        int port;
-        try {
-            discovery::parse_location(it.at("LOCATION"), addr, path, port);
-        } catch(std::exception& e) {
-            continue;
-        }
+        std::cout << "--------------------\n"
+        << it.location.ip << '\n' << '\n';
+        // << it.location.path << '\n'
+        // << it.location.port << '\n'
+        // << it.server << '\n'
+        // << it.usn << '\n';
 
         socketwrapper::TCPSocket conn {AF_INET};
-        conn.connect(port, addr);
+        conn.connect(it.location.port, it.location.ip);
 
-        std::string req_str {"GET "};
-        (((req_str += path) += " HTTP/1.1\r\nHOST: ") += addr) +=  "\r\n\r\n";
+        std::string req_str = ("GET " + it.location.path + " HTTP/1.1\r\nHOST: " + it.location.ip + ":" + std::to_string(it.location.port) +  "\r\n\r\n");
         std::cout << req_str << '\n';
 
         conn.write<char>(req_str.data(), req_str.size());
@@ -101,8 +84,9 @@ static void main_dial()
         while(!conn.bytes_available())
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         std::unique_ptr<char[]> buffer = conn.read<char>(4096);
-        std::cout << buffer.get() << std::endl;
+        std::cout << buffer.get() << '\n';
 
+        std::cout << "--------------------\n" << std::endl;
         // TODO Parse and check if there is a service of type dial
         // parse_services();
     }
@@ -118,6 +102,9 @@ static void block_signals(sigset_t* sigset)
 
 int main()
 {
+    main_dial();
+    return 0;
+
     sigset_t sigset;
     std::atomic<bool> run_condition {true};
     block_signals(&sigset);
@@ -169,7 +156,7 @@ int main()
     });
     // worker.emplace_back(init_capture, std::ref(run_condition));
 
-    std::cout << (launch_app_on_device(*device) ? "Launched" : "Launch error") << std::endl;
+    std::cout << (launch_app_on_device(device.get()) ? "Launched" : "Launch error") << std::endl;
 
     // Wait for signal and shut down all threads
     int signal = signal_handler.get();
