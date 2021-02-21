@@ -12,7 +12,10 @@ namespace dlna
 
 struct dlna_service
 {
-
+    std::string id;
+    std::string control_url;
+    std::string scpd_url;
+    std::string event_sub_url;
 };
 
 class dlna_media_renderer
@@ -29,7 +32,7 @@ public:
 
     bool connect();
 
-    void get_app_information() const;
+    const dlna_service* const get_service_information(const std::string& service_id) const;
 
 private:
 

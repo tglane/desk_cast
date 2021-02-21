@@ -11,6 +11,7 @@
 #include "mdns_discovery.hpp"
 #include "device.hpp"
 #include "cast_device.hpp"
+#include "dlna_device.hpp"
 #include "utils.hpp"
 
 #include "http/webserver.hpp"
@@ -60,12 +61,17 @@ static bool launch_app_on_device(device* dev)
     return googlecast::start_live_stream(*static_cast<googlecast::cast_device*>(dev), "http://" + utils::get_local_ipaddr() + ":5770/index.m3u8");
 }
 
-static void main_dial() 
+static void main_upnp() 
 {
     // std::vector<discovery::ssdp_res> responses = discovery::ssdp("urn:schemas-upnp-org:device:MediaServer:1");
     std::vector<discovery::ssdp_res> responses = discovery::ssdp("urn:schemas-upnp-org:device:MediaRenderer:1");
     for(const auto& it : responses)
     {
+        dlna::dlna_media_renderer device {it};
+        std::cout << ((device.connect()) ? "true" : "false") << std::endl;
+
+        return;
+
         std::cout << "--------------------\n"
         << it.location.ip << '\n' << '\n';
         // << it.location.path << '\n'
@@ -73,7 +79,7 @@ static void main_dial()
         // << it.server << '\n'
         // << it.usn << '\n';
 
-        socketwrapper::TCPSocket conn {AF_INET};
+        socketwrapper::TCPSocket conn {socketwrapper::ip_version::v4};
         conn.connect(it.location.port, it.location.ip);
 
         std::string req_str = ("GET " + it.location.path + " HTTP/1.1\r\nHOST: " + it.location.ip + ":" + std::to_string(it.location.port) +  "\r\n\r\n");
@@ -102,7 +108,7 @@ static void block_signals(sigset_t* sigset)
 
 int main()
 {
-    main_dial();
+    main_upnp();
     return 0;
 
     sigset_t sigset;
@@ -117,7 +123,7 @@ int main()
 
         // TODO Change to async I/O
         // Quick and dirty to stop waiting for accept in the web server
-        socketwrapper::TCPSocket sock {AF_INET};
+        socketwrapper::TCPSocket sock {socketwrapper::ip_version::v4};
         try {
             sock.connect(WEBSERVER_PORT, "127.0.0.1");
         } catch(socketwrapper::SocketConnectingException& e) {}

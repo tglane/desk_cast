@@ -70,7 +70,7 @@ std::vector<ssdp_res> ssdp(const std::string& service_type)
 
     bool stop = false;
     std::string msg = ("M-SEARCH * HTTP/1.1\r\nHost: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 5\r\nST: " + service_type + "\r\n\r\n");
-    socketwrapper::UDPSocket d_sock {AF_INET};
+    socketwrapper::UDPSocket d_sock {socketwrapper::ip_version::v4};
     std::vector<ssdp_res> responses;
 
     d_sock.bind("0.0.0.0", 1900);

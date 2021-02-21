@@ -153,7 +153,7 @@ static mdns_res parse_mdns_answer(std::vector<char>& buffer)
 std::vector<mdns_res> mdns_discovery(const std::string& record_name)
 {
     bool stop = false;
-    socketwrapper::UDPSocket q_sock {AF_INET};
+    socketwrapper::UDPSocket q_sock {socketwrapper::ip_version::v4};
     std::vector<mdns_res> res;
 
     // Set up mdns query

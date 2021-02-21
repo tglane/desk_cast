@@ -33,7 +33,7 @@ bool start_live_stream(cast_device& dev, std::string_view content_url)
 }
 
 cast_device::cast_device(const discovery::mdns_res& res, std::string_view ssl_cert, std::string_view ssl_key)
-    : m_sock {AF_INET, ssl_cert.data(), ssl_key.data()}
+    : m_sock {socketwrapper::ip_version::v4, ssl_cert.data(), ssl_key.data()}
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 

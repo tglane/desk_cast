@@ -105,8 +105,8 @@ static void serve_hls_stream(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
 }
 
 webserver::webserver(int32_t port, const char* cert_path, const char* key_path)
-    // : m_sock {AF_INET, cert_path, key_path}
-    : m_sock {AF_INET}
+    // : m_sock {socketwrapper::ip_version::v4, cert_path, key_path}
+    : m_sock {socketwrapper::ip_version::v4}
 {
     m_sock.bind("0.0.0.0", port);
 }
