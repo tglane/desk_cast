@@ -29,9 +29,12 @@ bool dlna_media_renderer::connect()
     const discovery::ssdp_location& loc = m_discovery_res.location;
     std::string req_str = ("GET " + loc.path + " HTTP/1.1\r\nHOST: " + loc.ip + ":" + std::to_string(loc.port) +  "\r\n\r\n");
     m_sock.write(req_str);
-    while(!m_sock.bytes_available())
-        std::this_thread::sleep_for(100ms);
+    // while(!m_sock.bytes_available())
+    //     std::this_thread::sleep_for(100ms);
     std::vector<char> buffer = m_sock.read_vector<char>(4096);
+    std::string_view buffer_view {buffer.data(), buffer.size()};
+    std::cout << "Size: " << buffer.size() << std::endl;
+    std::cout << buffer_view << std::endl;
     // http::response {m_sock.read_vector<char>(4096)};
 
     rapidxml::xml_document<char> doc;
