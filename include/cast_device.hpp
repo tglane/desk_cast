@@ -84,6 +84,12 @@ public:
 
 private:
 
+    struct ssl_keypair_path
+    {
+        std::string_view cert_path;
+        std::string_view key_path;
+    };
+
     bool send(const std::string_view nspace, std::string_view payload, const std::string_view dest_id = "receiver-0") const;
 
     bool send_json(const std::string_view nspace, json payload, const std::string_view dest_id = "receiver-0") const
@@ -94,7 +100,11 @@ private:
     json send_recv(const std::string_view nspace, const json& payload, const std::string_view dest_id = "receiver-0") const;
 
     /// Private member variables
-    net::tls_connection<net::ip_version::v4> m_sock;
+
+
+    ssl_keypair_path m_keypair;
+
+    std::unique_ptr<net::tls_connection<net::ip_version::v4>> m_sock {nullptr};
 
     std::future<void> m_heartbeat;
 

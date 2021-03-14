@@ -18,7 +18,7 @@ namespace googlecast
 {
 
 cast_device::cast_device(const discovery::mdns_res& res, std::string_view ssl_cert, std::string_view ssl_key)
-    : m_sock {ssl_cert.data(), ssl_key.data(), std::move(res.peer.addr), res.peer.port}
+    : m_keypair {ssl_cert, ssl_key}
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -56,7 +56,7 @@ cast_device::cast_device(const discovery::mdns_res& res, std::string_view ssl_ce
 }
 
 cast_device::cast_device(cast_device&& other)
-   : m_sock {std::move(other.m_sock)}, m_heartbeat {std::move(other.m_heartbeat)}, m_recv_loop {std::move(other.m_recv_loop)},
+   : m_keypair {std::move(other.m_keypair)}, m_sock {std::move(other.m_sock)}, m_heartbeat {std::move(other.m_heartbeat)}, m_recv_loop {std::move(other.m_recv_loop)},
      m_msg_store {std::move(other.m_msg_store)}, m_active_app {std::move(other.m_active_app)},
      m_connected {other.m_connected.load()}, m_name {std::move(other.m_name)}, m_target {std::move(other.m_target)}, 
      m_txt{std::move(other.m_txt)}, m_ip {std::move(other.m_ip)}, m_port {other.m_port}, m_request_id {other.m_request_id}
@@ -71,6 +71,7 @@ cast_device& cast_device::operator=(cast_device&& other)
 {
     if(this != &other)
     {
+        m_keypair = std::move(other.m_keypair);
         m_sock = std::move(other.m_sock);
         m_heartbeat = std::move(other.m_heartbeat);
         m_recv_loop = std::move(other.m_recv_loop);
@@ -108,6 +109,9 @@ bool cast_device::connect()
     if(m_connected.load())
         return false;
 
+    // Connecto on socket level
+    m_sock = std::make_unique<net::tls_connection<net::ip_version::v4>>(m_keypair.cert_path, m_keypair.key_path, m_ip, m_port);
+
     send(namespace_connection, R"({ "type": "CONNECT" })");
     m_connected.exchange(true);
 
@@ -118,8 +122,8 @@ bool cast_device::connect()
             try {
                 cast_message msg;
 
-                uint32_t len = ntohl(*reinterpret_cast<uint32_t*>(this->m_sock.read<char, 4>().data()));
-                if(len > 0 && msg.ParseFromArray(this->m_sock.read<char>(len).data(), len))
+                uint32_t len = ntohl(*reinterpret_cast<uint32_t*>(this->m_sock->read<char, 4>().data()));
+                if(len > 0 && msg.ParseFromArray(this->m_sock->read<char>(len).data(), len))
                 {
                     json payload = json::parse((msg.payload_type() == msg.STRING) ?
                         msg.payload_utf8() : msg.payload_binary());
@@ -300,7 +304,7 @@ bool cast_device::send(const std::string_view nspace, std::string_view payload, 
         return false;
 
     try {
-        m_sock.send<char>(data);
+        m_sock->send<char>(data);
     } catch(std::runtime_error& e) {
         return false;
     }
@@ -334,7 +338,7 @@ json cast_device::send_recv(const std::string_view nspace, const json& payload, 
     const auto& msg_pair = m_msg_store[req_id];
 
     try {
-        m_sock.send<char>(data);
+        m_sock->send<char>(data);
     } catch(std::runtime_error& e) {
         return recv;
     }

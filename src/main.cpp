@@ -29,9 +29,10 @@ static std::vector<std::unique_ptr<device>> get_devices()
     std::vector<discovery::mdns_res> mdns = discovery::mdns_discovery("_googlecast._tcp.local");
     if(mdns.size() > 0)
     {
-        devices.reserve(devices.size() + mdns.size());
         for(size_t i = 0; i < mdns.size(); i++)
+        {
             devices.push_back(std::make_unique<googlecast::cast_device>(mdns[i], std::string_view {SSL_CERT}, std::string_view {SSL_KEY}));
+        }
     }
 
     return devices;
