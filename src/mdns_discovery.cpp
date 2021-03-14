@@ -11,6 +11,8 @@
 #include <stdexcept>
 #include <cstring>
 
+#include <sys/ioctl.h>
+
 #include <iostream>
 
 namespace discovery
@@ -177,7 +179,11 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
     {
         while(!stop)
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            int bytes;
+            ioctl(q_sock.get(), FIONREAD, &bytes);
+            if(bytes <= 0)
+                continue;
+
             auto [buffer, peer] = q_sock.read<char>(4096);
             std::cout << buffer.data() << std::endl;
             std::cout << buffer.size() << std::endl;
@@ -189,6 +195,7 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
 
                 res.push_back(tmp);
             } catch(std::invalid_argument&) {
+                std::cout << "Invalid argument" << std::endl;
                 // Just ignore invalid requests
             }
         }
