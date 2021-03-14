@@ -1,13 +1,12 @@
 #include "dial_discovery.hpp"
 
-#include "socketwrapper/UDPSocket.hpp"
-#include "socketwrapper/TCPSocket.hpp"
-
 #include <memory>
 #include <thread>
 #include <future>
 #include <chrono>
 #include <stdexcept>
+
+#include "socketwrapper.hpp"
 
 namespace discovery
 {
@@ -30,7 +29,7 @@ ssdp_res parse_request(std::string_view view)
     return res;
 }
 
-void parse_location(const std::string& location, std::string& addr, std::string& path, int& port)
+void parse_location(const std::string& location, std::string& addr, std::string& path, uint16_t& port)
 {
     // TODO Throw std::invalid_argument if location is not a valid location string
 
@@ -49,23 +48,17 @@ std::vector<ssdp_res> upnp_discovery()
     using namespace std::chrono;
 
     bool stop = false;
-    const char* msg = "M-SEARCH * HTTP/1.1\r\n Host: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 3\r\nST: urn:dial-multiscreen-org:service:dial:1\r\n\r\n";
-    socketwrapper::UDPSocket d_sock {AF_INET};
+    std::string_view msg  {"M-SEARCH * HTTP/1.1\r\n Host: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 3\r\nST: urn:dial-multiscreen-org:service:dial:1\r\n\r\n"};
     std::vector<ssdp_res> responses;
-
-    d_sock.bind("0.0.0.0", 1900);
-    d_sock.send_to<char>(msg, strlen(msg), DISCOVERY_PORT, DISCOVERY_IP);
+    net::udp_socket<net::ip_version::v4> d_sock {"0.0.0.0", 1900};
+    d_sock.send(DISCOVERY_IP, DISCOVERY_PORT, msg);
 
     auto fut = std::async(std::launch::async, [&stop, &d_sock, &responses]() 
     {
         while(!stop)
         {
-            if(d_sock.bytes_available())
-            {
-                std::unique_ptr<char[]> buffer = d_sock.receive<char>(d_sock.bytes_available(), nullptr);
-
-                responses.push_back(parse_request(buffer.get()));
-            }
+            auto [buffer, peer] = d_sock.read<char>(4096);
+            responses.push_back(parse_request(buffer.data()));
         }
     });
 
@@ -74,7 +67,6 @@ std::vector<ssdp_res> upnp_discovery()
     stop = true;
     fut.get();
 
-    d_sock.close();
     return responses;
 }
 

@@ -11,9 +11,9 @@
 #include <condition_variable>
 
 #include "../protos/cast_channel.pb.h"
-#include "socketwrapper/SSLTCPSocket.hpp"
-#include "json.hpp"
 #include "device.hpp"
+#include "socketwrapper.hpp"
+#include "json.hpp"
 #include "mdns_discovery.hpp"
 
 using nlohmann::json;
@@ -94,8 +94,7 @@ private:
     json send_recv(const std::string_view nspace, const json& payload, const std::string_view dest_id = "receiver-0") const;
 
     /// Private member variables
-
-    socketwrapper::SSLTCPSocket m_sock;
+    net::tls_connection<net::ip_version::v4> m_sock;
 
     std::future<void> m_heartbeat;
 

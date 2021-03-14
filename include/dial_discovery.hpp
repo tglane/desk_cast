@@ -18,7 +18,7 @@ using ssdp_res = std::map<std::string, std::string>;
 ssdp_res parse_request(std::string_view view);
 
 void parse_location(const std::string& location, std::string& addr, 
-    std::string& path, int& port);
+    std::string& path, uint16_t& port);
 
 std::vector<ssdp_res> upnp_discovery();
 

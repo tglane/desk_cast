@@ -18,7 +18,7 @@ namespace googlecast
 {
 
 cast_device::cast_device(const discovery::mdns_res& res, std::string_view ssl_cert, std::string_view ssl_key)
-    : m_sock {AF_INET, ssl_cert.data(), ssl_key.data()}
+    : m_sock {ssl_cert.data(), ssl_key.data(), std::move(res.peer.addr), res.peer.port}
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -108,12 +108,6 @@ bool cast_device::connect()
     if(m_connected.load())
         return false;
 
-    try {
-        m_sock.connect(m_port, m_ip);
-    } catch(socketwrapper::SocketConnectingException& e) {
-        return false;
-    }
-
     send(namespace_connection, R"({ "type": "CONNECT" })");
     m_connected.exchange(true);
 
@@ -122,36 +116,31 @@ bool cast_device::connect()
         while(this->m_connected.load())
         {
             try {
-                if(this->m_sock.bytes_available())
+                cast_message msg;
+
+                uint32_t len = ntohl(*reinterpret_cast<uint32_t*>(this->m_sock.read<char, 4>().data()));
+                if(len > 0 && msg.ParseFromArray(this->m_sock.read<char>(len).data(), len))
                 {
-                    cast_message msg;
-                    uint32_t len = ntohl(*reinterpret_cast<uint32_t*>(this->m_sock.read_vector<char>(4).data()));
-                    if(len > 0 && msg.ParseFromArray(this->m_sock.read_vector<char>(len).data(), len))
+                    json payload = json::parse((msg.payload_type() == msg.STRING) ?
+                        msg.payload_utf8() : msg.payload_binary());
+
+                    // std::cout << "Received : " << payload["requestId"] << std::endl;
+                    // std::cout << payload.dump(2) << "--------------------------\n";
+
+                    // Check if message contains requestId because we dont want to store other messages
+                    if(payload.contains("requestId") && payload["requestId"].is_number())
                     {
-                        json payload = json::parse((msg.payload_type() == msg.STRING) ?
-                            msg.payload_utf8() : msg.payload_binary());
-
-                        // std::cout << "Received : " << payload["requestId"] << std::endl;
-                        // std::cout << payload.dump(2) << "--------------------------\n";
-
-                        // Check if message contains requestId because we dont want to store other messages
-                        if(payload.contains("requestId") && payload["requestId"].is_number())
+                        auto msg_iter = this->m_msg_store.find(payload["requestId"]);
+                        if(msg_iter != this->m_msg_store.end())
                         {
-                            auto msg_iter = this->m_msg_store.find(payload["requestId"]);
-                            if(msg_iter != this->m_msg_store.end())
-                            {
-                                msg_iter->second.second = payload;
-                                msg_iter->second.first->notify_all();
-                            }
+                            msg_iter->second.second = payload;
+                            msg_iter->second.first->notify_all();
                         }
                     }
                 }
 
                 std::this_thread::sleep_for(500ms);
-
-            } catch(socketwrapper::SocketReadException& e) {
-                std::cout << e.what() << std::endl;
-            } catch(socketwrapper::SocketTimeoutException& e) {
+            } catch(std::runtime_error& e) {
                 std::cout << e.what() << std::endl;
             } catch(json::parse_error& e) {
                 std::cout << e.what() << std::endl;
@@ -311,8 +300,8 @@ bool cast_device::send(const std::string_view nspace, std::string_view payload, 
         return false;
 
     try {
-        m_sock.write_vector<char>(data);
-    } catch(socketwrapper::SocketWriteException& e) {
+        m_sock.send<char>(data);
+    } catch(std::runtime_error& e) {
         return false;
     }
 
@@ -345,8 +334,8 @@ json cast_device::send_recv(const std::string_view nspace, const json& payload, 
     const auto& msg_pair = m_msg_store[req_id];
 
     try {
-        m_sock.write_vector<char>(data);
-    } catch(socketwrapper::SocketWriteException& e) {
+        m_sock.send<char>(data);
+    } catch(std::runtime_error& e) {
         return recv;
     }
 

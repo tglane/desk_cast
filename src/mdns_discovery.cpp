@@ -1,8 +1,7 @@
 #include "mdns_discovery.hpp"
 
-#include "socketwrapper/UDPSocket.hpp"
-
 #include <memory>
+#include <array>
 #include <thread>
 #include <future>
 #include <chrono>
@@ -10,6 +9,7 @@
 #include <istream>
 #include <sstream>
 #include <stdexcept>
+#include <cstring>
 
 #include <iostream>
 
@@ -153,12 +153,11 @@ static mdns_res parse_mdns_answer(std::vector<char>& buffer)
 std::vector<mdns_res> mdns_discovery(const std::string& record_name)
 {
     bool stop = false;
-    socketwrapper::UDPSocket q_sock {AF_INET};
     std::vector<mdns_res> res;
 
     // Set up mdns query
-    char query[6536] = { 0 };
-    dns_header* dns = reinterpret_cast<dns_header*>(&query);
+    std::array<char, 6536> query;
+    dns_header* dns = reinterpret_cast<dns_header*>(query.data());
     dns->rd = 1;
     dns->q_count = htons(1);
 
@@ -170,27 +169,27 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
     qinfo->qclass = htons(1);
 
     // Send up query
-    q_sock.bind("0.0.0.0", 5353);
-    q_sock.send_to<char>(query, sizeof(dns_header) + (strlen((const char*)qname)+1) + sizeof(dns_question), QUERY_PORT, QUERY_IP);
+    net::udp_socket<net::ip_version::v4> q_sock {"0.0.0.0", 5353};
+    q_sock.send<char, 6536>(QUERY_IP, QUERY_PORT, query);
 
     // Receive answers for QUERY_TIME seconds
     auto fut = std::async(std::launch::async, [&stop, &q_sock, &res]()
     {
         while(!stop)
         {
-            if(q_sock.bytes_available())
-            {
-                sockaddr_storage peer;
-                std::vector<char> buffer = q_sock.receive_vector<char>(4096, reinterpret_cast<sockaddr_in*>(&peer));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            auto [buffer, peer] = q_sock.read<char>(4096);
+            std::cout << buffer.data() << std::endl;
+            std::cout << buffer.size() << std::endl;
+            std::cout << peer.port << std::endl;
+            std::cout << peer.addr << std::endl;
+            try {
+                mdns_res tmp = parse_mdns_answer(buffer);
+                tmp.peer = std::move(peer);
 
-                try {
-                    mdns_res tmp = parse_mdns_answer(buffer);
-                    tmp.peer = peer;
-
-                    res.push_back(std::move(tmp));
-                } catch(std::exception& e) {
-                    // ... No valid mdns answer so just skip it
-                }
+                res.push_back(tmp);
+            } catch(std::invalid_argument&) {
+                // Just ignore invalid requests
             }
         }
     });
@@ -199,7 +198,6 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
     stop = true;
     fut.get();
 
-    q_sock.close();
     return res;
 }
 

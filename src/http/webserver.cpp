@@ -9,7 +9,9 @@
 #include <string>
 #include <string_view>
 #include <fstream>
+#include <atomic>
 #include <charconv>
+#include <cstring>
 
 #include <iostream>
 
@@ -24,27 +26,15 @@ static std::vector<char> file_to_binary(std::string_view path)
         (std::istreambuf_iterator<char>())};
 }
 
-static void serve_hls_stream(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
+static void serve_hls_stream(net::tcp_connection<net::ip_version::v4>&& conn)
 {
-    // TODO improve connection handling
-    size_t wait_cnt = 0;
-    while(conn->bytes_available() <= 0)
-    {
-        if(wait_cnt >= 10)
-            return;
-
-        wait_cnt++;
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
     request req;
     try {
-        req.parse((conn->read_all<char>()).get());
+        req.parse(conn.read<char, 1024>().data());
     } catch(...) {
         response res;
         res.set_code(400, "Bad Request");
-        std::string res_str = res.to_string();
-        conn->write<char>(res_str.data(), res_str.size());
+        conn.send(res.to_string());
         return;
     }
 
@@ -62,8 +52,7 @@ static void serve_hls_stream(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
     {
         response res;
         res.set_code(400, "Bad Request");
-        std::string res_str = res.to_string();
-        conn->write<char>(res_str.data(), res_str.size());
+        conn.send(res.to_string());
         return;
     }
 
@@ -100,23 +89,13 @@ static void serve_hls_stream(std::unique_ptr<socketwrapper::TCPSocket>&& conn)
     res.set_header("Access-Control-Allow-Origin", "*");
     res.set_header("Access-Control-Allow-Methods", "OPTIONS, GET, HEAD");
 
-    std::string res_str = res.to_string();
-    conn->write<char>(res_str.data(), res_str.size());
-}
-
-webserver::webserver(int32_t port, const char* cert_path, const char* key_path)
-    // : m_sock {AF_INET, cert_path, key_path}
-    : m_sock {AF_INET}
-{
-    m_sock.bind("0.0.0.0", port);
+    conn.send(res.to_string());
 }
 
 void webserver::serve(std::atomic<bool>& run_condition)
 {
-    m_sock.listen(1);
-
     std::cout << "Webserver serving ..." << std::endl;
-    while(run_condition)
+    while(run_condition.load())
     {
         try {
             // Because this webserver only serves one client, here we dont need
@@ -124,8 +103,8 @@ void webserver::serve(std::atomic<bool>& run_condition)
 
             // TODO Parse request here and go to correct service function when supoorting multiple protocols
 
-            serve_hls_stream(m_sock.accept());
-        } catch(socketwrapper::SocketAcceptingException&) {}
+            serve_hls_stream(m_acceptor.accept());
+        } catch(std::runtime_error&) {}
     }
 
     std::cout << "Webserver closing" << std::endl;

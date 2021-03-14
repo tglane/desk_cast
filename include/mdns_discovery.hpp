@@ -8,6 +8,8 @@
 
 #include <sys/socket.h>
 
+#include "socketwrapper.hpp"
+
 #define QUERY_IP "224.0.0.251"
 #define QUERY_PORT 5353
 #define QUERY_TIME 5000
@@ -25,7 +27,7 @@ struct mdns_record
 
 struct mdns_res
 {
-    sockaddr_storage peer;
+    net::connection_tuple peer;
     uint16_t qtype;
     std::string qname;
     std::vector<mdns_record> records;
