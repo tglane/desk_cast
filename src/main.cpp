@@ -24,8 +24,8 @@ static std::vector<std::unique_ptr<device>> get_devices()
     std::vector<std::unique_ptr<device>> devices;
 
     // TODO Extend this to get all device types available
-
     // Get googlecast devices via mdns request
+
     std::vector<discovery::mdns_res> mdns = discovery::mdns_discovery("_googlecast._tcp.local");
     if(mdns.size() > 0)
     {
@@ -47,7 +47,7 @@ static device_ptr& select_device(std::vector<device_ptr>& devices)
     }
     std::cout << "\nSelect the device you want to connect to:\n>> ";
     std::cin >> selected;
-    if(0 > selected || selected >= devices.size())
+    if(selected >= devices.size())
         selected = 0; // Default selection
 
     return devices[selected];
