@@ -1,8 +1,8 @@
 CC := g++
 PROTOC := protoc
 
-CFLAGS := -std=c++17 -Iinclude -fpic -O3 -Werror -Wall -pedantic -Wno-unused
-LDFLAGS := -L./lib -lsocketwrapper -lpthread -lcrypto -lssl -lprotobuf -lavcodec -lavformat -lavdevice -lavutil
+CFLAGS := -std=c++17 -Iinclude -fpic -O3 -Werror -Wall -Wextra -pedantic -Wno-unused
+LDFLAGS := -std=c++17 -lpthread -lcrypto -lssl -lprotobuf -lavcodec -lavformat -lavdevice -lavutil
 
 APPNAME = desk_cast
 
@@ -33,5 +33,5 @@ $(PROTODIR)/%.pb.cc: $(PROTODIR)/%.proto
 
 .PHONY: clean
 clean:
-	rm ./$(APPNAME)
 	rm -rf $(OBJDIR)/*.o
+	rm ./$(APPNAME)

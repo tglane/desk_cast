@@ -11,9 +11,9 @@
 #include <condition_variable>
 
 #include "../protos/cast_channel.pb.h"
-#include "socketwrapper/SSLTCPSocket.hpp"
-#include "json.hpp"
 #include "device.hpp"
+#include "socketwrapper.hpp"
+#include "json.hpp"
 #include "mdns_discovery.hpp"
 
 using nlohmann::json;
@@ -85,6 +85,12 @@ public:
 
 private:
 
+    struct ssl_keypair_path
+    {
+        std::string_view cert_path;
+        std::string_view key_path;
+    };
+
     bool send(const std::string_view nspace, std::string_view payload, const std::string_view dest_id = "receiver-0") const;
 
     bool send_json(const std::string_view nspace, json payload, const std::string_view dest_id = "receiver-0") const
@@ -96,7 +102,10 @@ private:
 
     /// Private member variables
 
-    socketwrapper::SSLTCPSocket m_sock;
+
+    ssl_keypair_path m_keypair;
+
+    std::unique_ptr<net::tls_connection<net::ip_version::v4>> m_sock {nullptr};
 
     std::future<void> m_heartbeat;
 

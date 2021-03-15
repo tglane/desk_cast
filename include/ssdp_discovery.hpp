@@ -19,7 +19,7 @@ struct ssdp_location
 {
     std::string ip;
     std::string path;
-    uint32_t port;
+    uint16_t port;
 };
 
 struct ssdp_res

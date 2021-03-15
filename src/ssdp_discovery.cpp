@@ -1,13 +1,13 @@
 #include "ssdp_discovery.hpp"
 
-#include "socketwrapper/UDPSocket.hpp"
-#include "socketwrapper/TCPSocket.hpp"
+#include <socketwrapper.hpp>
 
 #include <memory>
 #include <thread>
 #include <future>
 #include <chrono>
 #include <stdexcept>
+#include <sys/ioctl.h>
 
 namespace discovery
 {
@@ -70,22 +70,23 @@ std::vector<ssdp_res> ssdp(const std::string& service_type)
 
     bool stop = false;
     std::string msg = ("M-SEARCH * HTTP/1.1\r\nHost: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 5\r\nST: " + service_type + "\r\n\r\n");
-    socketwrapper::UDPSocket d_sock {socketwrapper::ip_version::v4};
     std::vector<ssdp_res> responses;
 
-    d_sock.bind("0.0.0.0", 1900);
-    d_sock.send_to<char>(msg.data(), msg.size(), DISCOVERY_PORT, DISCOVERY_IP);
+    net::udp_socket<net::ip_version::v4> d_sock {"0.0.0.0", 1900};
+    d_sock.send(DISCOVERY_IP, DISCOVERY_PORT, msg);
 
     auto fut = std::async(std::launch::async, [&stop, &d_sock, &responses]() 
     {
         while(!stop)
         {
-            if(d_sock.bytes_available())
-            {
-                std::unique_ptr<char[]> buffer = d_sock.receive<char>(d_sock.bytes_available(), nullptr);
+            // TODO use poll or select instead
+            int bytes;
+            ioctl(d_sock.get(), FIONREAD, &bytes);
+            if(bytes <= 0)
+                continue;
 
-                responses.push_back(parse_request(buffer.get()));
-            }
+            auto [buffer, peer] = d_sock.read<char>(4096);
+            responses.push_back(parse_request(std::string_view {buffer.data(), buffer.size()}));
         }
     });
 
@@ -94,8 +95,8 @@ std::vector<ssdp_res> ssdp(const std::string& service_type)
     stop = true;
     fut.get();
 
-    d_sock.close();
     return responses;
 }
 
 } // namespace discovery
+

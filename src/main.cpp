@@ -3,9 +3,7 @@
 #include <thread>
 #include <signal.h>
 
-#include "socketwrapper/UDPSocket.hpp"
-#include "socketwrapper/TCPSocket.hpp"
-#include "socketwrapper/SSLTCPSocket.hpp"
+#include "socketwrapper.hpp"
 
 #include "ssdp_discovery.hpp"
 #include "mdns_discovery.hpp"
@@ -27,14 +25,15 @@ static std::vector<std::unique_ptr<device>> get_devices()
     std::vector<std::unique_ptr<device>> devices;
 
     // TODO Extend this to get all device types available
-
     // Get googlecast devices via mdns request
+
     std::vector<discovery::mdns_res> mdns = discovery::mdns_discovery("_googlecast._tcp.local");
     if(mdns.size() > 0)
     {
-        devices.reserve(devices.size() + mdns.size());
         for(size_t i = 0; i < mdns.size(); i++)
+        {
             devices.push_back(std::make_unique<googlecast::cast_device>(mdns[i], std::string_view {SSL_CERT}, std::string_view {SSL_KEY}));
+        }
     }
 
     return devices;
@@ -49,7 +48,7 @@ static device_ptr& select_device(std::vector<device_ptr>& devices)
     }
     std::cout << "\nSelect the device you want to connect to:\n>> ";
     std::cin >> selected;
-    if(0 > selected || selected >= devices.size())
+    if(selected >= devices.size())
         selected = 0; // Default selection
 
     return devices[selected];
@@ -79,18 +78,16 @@ static void main_upnp()
         // << it.server << '\n'
         // << it.usn << '\n';
 
-        socketwrapper::TCPSocket conn {socketwrapper::ip_version::v4};
-        conn.connect(it.location.port, it.location.ip);
+        net::tcp_connection<net::ip_version::v4> conn {it.location.ip, it.location.port};
 
         std::string req_str = ("GET " + it.location.path + " HTTP/1.1\r\nHOST: " + it.location.ip + ":" + std::to_string(it.location.port) +  "\r\n\r\n");
         std::cout << req_str << '\n';
+        conn.send(std::string_view {req_str});
 
-        conn.write<char>(req_str.data(), req_str.size());
-
-        while(!conn.bytes_available())
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        std::unique_ptr<char[]> buffer = conn.read<char>(4096);
-        std::cout << buffer.get() << '\n';
+        // while(!conn.bytes_available())
+        //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::vector<char> buffer = conn.read<char>(4096);
+        std::cout << buffer.data() << std::endl;
 
         std::cout << "--------------------\n" << std::endl;
         // TODO Parse and check if there is a service of type dial
@@ -121,12 +118,10 @@ int main()
         run_condition.store(false);
         std::cout << "Shutting down ...\n";
 
-        // TODO Change to async I/O
         // Quick and dirty to stop waiting for accept in the web server
-        socketwrapper::TCPSocket sock {socketwrapper::ip_version::v4};
         try {
-            sock.connect(WEBSERVER_PORT, "127.0.0.1");
-        } catch(socketwrapper::SocketConnectingException& e) {}
+            net::tcp_connection<net::ip_version::v4> sock {"127.0.0.1", WEBSERVER_PORT};
+        } catch(std::runtime_error& err) {}
 
         return signum;
     });
@@ -174,3 +169,4 @@ int main()
 
     return EXIT_SUCCESS;
 }
+

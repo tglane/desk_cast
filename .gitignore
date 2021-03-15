@@ -5,3 +5,4 @@ desk_cast
 *.pb.cc
 *.pb.h
 *.pem
+*.swp

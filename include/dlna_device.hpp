@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "ssdp_discovery.hpp"
-#include "socketwrapper/TCPSocket.hpp"
+#include "socketwrapper.hpp"
 
 namespace dlna
 {
@@ -32,11 +32,11 @@ public:
 
     bool connect();
 
-    const dlna_service* const get_service_information(const std::string& service_id) const;
+   const dlna_service* get_service_information(const std::string& service_id) const;
 
 private:
 
-    socketwrapper::TCPSocket m_sock;
+    std::unique_ptr<net::tcp_connection<net::ip_version::v4>> m_sock {nullptr};
 
     discovery::ssdp_res m_discovery_res;
 
@@ -49,3 +49,4 @@ private:
 } // namespace upnp
 
 #endif
+

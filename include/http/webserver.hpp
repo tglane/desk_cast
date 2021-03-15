@@ -1,8 +1,9 @@
 #ifndef HTTP_WEBSERVER_HPP
 #define HTTP_WEBSERVER_HPP
 
-#include "socketwrapper/SSLTCPSocket.hpp"
-#include "socketwrapper/TCPSocket.hpp"
+#include "socketwrapper.hpp"
+
+#include "socketwrapper.hpp"
 
 namespace http
 {
@@ -18,14 +19,16 @@ public:
     webserver& operator=(webserver&&) = default;
     ~webserver() = default;
 
-    webserver(int32_t port, const char* cert_path, const char* key_path);
+    webserver(uint16_t port, const char* cert_path, const char* key_path)
+        : m_acceptor {"0.0.0.0", port}
+    {}
 
     void serve(std::atomic<bool>& run_condition);
 
 private:
 
     // socketwrapper::SSLTCPSocket m_sock;
-    socketwrapper::TCPSocket m_sock;
+    net::tcp_acceptor<net::ip_version::v4> m_acceptor;
 
 };
 

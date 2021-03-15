@@ -10,7 +10,6 @@
 #include <exception>
 #include <mutex>
 
-#include "socketwrapper/TCPSocket.hpp"
 #include "http/request.hpp"
 
 namespace http
