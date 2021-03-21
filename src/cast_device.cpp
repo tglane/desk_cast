@@ -122,9 +122,16 @@ bool cast_device::connect()
             try {
                 cast_message msg;
 
-                uint32_t len = ntohl(*reinterpret_cast<uint32_t*>(this->m_sock->read<char, 4>().data()));
-                if(len > 0 && msg.ParseFromArray(this->m_sock->read<char>(len).data(), len))
+                // TODO Continue reading until len was read -> do-while
+                uint32_t len;
+                this->m_sock->read(net::span {&len, 1});
+                len = ntohl(len);
+                std::array<char, 4096> buffer;
+                size_t br =  this->m_sock->read(net::span {buffer.data(), len});
+
+                if(len > 0 && msg.ParseFromArray(buffer.data(), len))
                 {
+
                     json payload = json::parse((msg.payload_type() == msg.STRING) ?
                         msg.payload_utf8() : msg.payload_binary());
 
@@ -304,7 +311,7 @@ bool cast_device::send(const std::string_view nspace, std::string_view payload, 
         return false;
 
     try {
-        m_sock->send<char>(data);
+        m_sock->send(net::span {data});
     } catch(std::runtime_error& e) {
         return false;
     }
@@ -338,7 +345,7 @@ json cast_device::send_recv(const std::string_view nspace, const json& payload, 
     const auto& msg_pair = m_msg_store[req_id];
 
     try {
-        m_sock->send<char>(data);
+        m_sock->send(net::span {data});
     } catch(std::runtime_error& e) {
         return recv;
     }
@@ -353,3 +360,4 @@ json cast_device::send_recv(const std::string_view nspace, const json& payload, 
 }
 
 } // namespace googlecast
+

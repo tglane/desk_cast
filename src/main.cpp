@@ -94,11 +94,12 @@ static void main_dial()
         (((req_str += path) += " HTTP/1.1\r\nHOST: ") += addr) +=  "\r\n\r\n";
         std::cout << req_str << '\n';
 
-        conn.send(std::string_view {req_str});
+        conn.send(net::span {req_str.begin(), req_str.end()});
 
         // while(!conn.bytes_available())
         //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        std::vector<char> buffer = conn.read<char>(4096);
+        std::array<char, 4096> buffer;
+        size_t br = conn.read(net::span {buffer});
         std::cout << buffer.data() << std::endl;
 
         // TODO Parse and check if there is a service of type dial

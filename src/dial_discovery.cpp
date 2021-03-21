@@ -51,14 +51,15 @@ std::vector<ssdp_res> upnp_discovery()
     std::string_view msg  {"M-SEARCH * HTTP/1.1\r\n Host: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 3\r\nST: urn:dial-multiscreen-org:service:dial:1\r\n\r\n"};
     std::vector<ssdp_res> responses;
     net::udp_socket<net::ip_version::v4> d_sock {"0.0.0.0", 1900};
-    d_sock.send(DISCOVERY_IP, DISCOVERY_PORT, msg);
+    d_sock.send(DISCOVERY_IP, DISCOVERY_PORT, net::span {msg.begin(), msg.end()});
 
     auto fut = std::async(std::launch::async, [&stop, &d_sock, &responses]() 
     {
         while(!stop)
         {
-            auto [buffer, peer] = d_sock.read<char>(4096);
-            responses.push_back(parse_request(buffer.data()));
+            std::array<char, 4096> buffer;
+            size_t br = d_sock.read(net::span {buffer});
+            responses.push_back(parse_request(std::string_view {buffer.data(), br}));
         }
     });
 

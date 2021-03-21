@@ -30,11 +30,13 @@ static void serve_hls_stream(net::tcp_connection<net::ip_version::v4>&& conn)
 {
     request req;
     try {
-        req.parse(conn.read<char, 1024>().data());
+        std::array<char, 4096> buffer;
+        conn.read(net::span {buffer});
+        req.parse(buffer.data());
     } catch(...) {
         response res;
         res.set_code(400, "Bad Request");
-        conn.send(res.to_string());
+        conn.send(net::span {res.to_string()});
         return;
     }
 
@@ -44,6 +46,7 @@ static void serve_hls_stream(net::tcp_connection<net::ip_version::v4>&& conn)
     std::string_view pv = req.get_path();
     std::string path;
     path.resize(12 + pv.size());
+    // TODO use std::copy instead of memcpy
     std::memcpy(path.data(), "./test_data", 11);
     std::memcpy(path.data() + 11, pv.data(), pv.size());
 
@@ -52,7 +55,8 @@ static void serve_hls_stream(net::tcp_connection<net::ip_version::v4>&& conn)
     {
         response res;
         res.set_code(400, "Bad Request");
-        conn.send(res.to_string());
+        std::string res_str = res.to_string();
+        conn.send(net::span {res.to_string()});
         return;
     }
 
@@ -89,7 +93,7 @@ static void serve_hls_stream(net::tcp_connection<net::ip_version::v4>&& conn)
     res.set_header("Access-Control-Allow-Origin", "*");
     res.set_header("Access-Control-Allow-Methods", "OPTIONS, GET, HEAD");
 
-    conn.send(res.to_string());
+    conn.send(net::span {res.to_string()});
 }
 
 void webserver::serve(std::atomic<bool>& run_condition)
