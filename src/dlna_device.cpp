@@ -7,6 +7,8 @@
 
 #include <chrono>
 #include <algorithm>
+#include <thread>
+#include <sys/ioctl.h>
 
 using namespace std::chrono_literals;
 
@@ -30,9 +32,9 @@ bool dlna_media_renderer::connect()
     std::string req_str = ("GET " + loc.path + " HTTP/1.1\r\nHOST: " + loc.ip + ":" + std::to_string(loc.port) +  "\r\n\r\n");
     m_sock->send(req_str);
 
-    // while(!m_sock.bytes_available())
-    //     std::this_thread::sleep_for(100ms);
-    std::vector<char> buffer = m_sock->read<char>(4096);
+    // std::vector<char> buffer = m_sock->read<char>(4096);
+    std::array<char, 4096> buffer;
+    m_sock->read<char>(buffer.data());
 
     std::string_view buffer_view {buffer.data(), buffer.size()};
     std::cout << "Size: " << buffer.size() << std::endl;
