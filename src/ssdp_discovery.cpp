@@ -73,7 +73,7 @@ std::vector<ssdp_res> ssdp(const std::string& service_type)
     std::vector<ssdp_res> responses;
 
     net::udp_socket<net::ip_version::v4> d_sock {"0.0.0.0", 1900};
-    d_sock.send(DISCOVERY_IP, DISCOVERY_PORT, msg);
+    d_sock.send(DISCOVERY_IP, DISCOVERY_PORT, net::span {msg});
 
     auto fut = std::async(std::launch::async, [&stop, &d_sock, &responses]() 
     {
@@ -85,8 +85,9 @@ std::vector<ssdp_res> ssdp(const std::string& service_type)
             if(bytes <= 0)
                 continue;
 
-            auto [buffer, peer] = d_sock.read<char>(4096);
-            responses.push_back(parse_request(std::string_view {buffer.data(), buffer.size()}));
+            std::array<char, 4096> buffer;
+            size_t br = d_sock.read(net::span {buffer});
+            responses.push_back(parse_request(std::string_view {buffer.data(), br}));
         }
     });
 

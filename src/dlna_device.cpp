@@ -30,11 +30,10 @@ bool dlna_media_renderer::connect()
 
     const discovery::ssdp_location& loc = m_discovery_res.location;
     std::string req_str = ("GET " + loc.path + " HTTP/1.1\r\nHOST: " + loc.ip + ":" + std::to_string(loc.port) +  "\r\n\r\n");
-    m_sock->send(req_str);
+    m_sock->send(net::span {req_str.begin(), req_str.end()});
 
-    // std::vector<char> buffer = m_sock->read<char>(4096);
     std::array<char, 4096> buffer;
-    m_sock->read<char>(buffer.data());
+    m_sock->read(net::span {buffer});
 
     std::string_view buffer_view {buffer.data(), buffer.size()};
     std::cout << "Size: " << buffer.size() << std::endl;
