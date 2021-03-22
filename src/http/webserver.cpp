@@ -8,10 +8,10 @@
 #include <vector>
 #include <string>
 #include <string_view>
+#include <algorithm>
 #include <fstream>
 #include <atomic>
 #include <charconv>
-#include <cstring>
 
 #include <iostream>
 
@@ -42,14 +42,13 @@ static void serve_hls_stream(net::tcp_connection<net::ip_version::v4>&& conn)
 
     // std::cout << "[DEBUG]:\n" << req.to_string() << std::endl;
 
-    // Read file
     std::string_view pv = req.get_path();
     std::string path;
-    path.resize(12 + pv.size());
-    // TODO use std::copy instead of memcpy
-    std::memcpy(path.data(), "./test_data", 11);
-    std::memcpy(path.data() + 11, pv.data(), pv.size());
+    path.reserve(11 + pv.size());
+    path.assign("./test_data");
+    std::copy(pv.begin(), pv.end(), std::back_inserter(path));
 
+    // Read file
     std::vector<char> img = file_to_binary(path.data());
     if(img.size() <= 0) 
     {
