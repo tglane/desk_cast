@@ -82,11 +82,12 @@ static void main_upnp()
 
         std::string req_str = ("GET " + it.location.path + " HTTP/1.1\r\nHOST: " + it.location.ip + ":" + std::to_string(it.location.port) +  "\r\n\r\n");
         std::cout << req_str << '\n';
-        conn.send(std::string_view {req_str});
+        conn.send(net::span {req_str.begin(), req_str.end()});
 
         // while(!conn.bytes_available())
         //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        std::vector<char> buffer = conn.read<char>(4096);
+        std::array<char, 4096> buffer;
+        size_t br = conn.read(net::span {buffer});
         std::cout << buffer.data() << std::endl;
 
         std::cout << "--------------------\n" << std::endl;

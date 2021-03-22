@@ -172,7 +172,7 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
 
     // Send query
     net::udp_socket<net::ip_version::v4> q_sock {"0.0.0.0", 5353};
-    q_sock.send<char, 6536>(QUERY_IP, QUERY_PORT, query, sizeof(dns_header) + (strlen((const char*)qname)+1) + sizeof(dns_question));
+    q_sock.send(QUERY_IP, QUERY_PORT, net::span {query.data(), sizeof(dns_header) + (strlen((const char*)qname)+1) + sizeof(dns_question)});
 
     // Receive answers for QUERY_TIME seconds
     auto fut = std::async(std::launch::async, [&stop, &q_sock, &res]()
@@ -185,12 +185,15 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
             if(bytes <= 0)
                 continue;
 
-            auto [buffer, peer] = q_sock.read<char>(4096);
+            net::connection_tuple peer {};
+            std::vector<char> buffer(4096);
+            size_t br = q_sock.read(net::span {buffer}, peer);
+            buffer.resize(br);
             try {
                 mdns_res tmp = parse_mdns_answer(buffer);
                 tmp.peer = std::move(peer);
 
-                res.push_back(tmp);
+                res.push_back(std::move(tmp));
             } catch(std::invalid_argument&) {
                 // Just ignore invalid requests like other mdns queries or responses to other queries
             }
