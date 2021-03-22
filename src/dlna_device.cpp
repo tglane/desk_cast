@@ -33,10 +33,10 @@ bool dlna_media_renderer::connect()
     m_sock->send(net::span {req_str.begin(), req_str.end()});
 
     std::array<char, 4096> buffer;
-    m_sock->read(net::span {buffer});
+    size_t br = m_sock->read(net::span {buffer});
 
-    std::string_view buffer_view {buffer.data(), buffer.size()};
-    std::cout << "Size: " << buffer.size() << std::endl;
+    std::string_view buffer_view {buffer.data(), br};
+    std::cout << "Size: " << br << std::endl;
     std::cout << buffer_view << std::endl;
     // http::response {m_sock.read_vector<char>(4096)};
 
