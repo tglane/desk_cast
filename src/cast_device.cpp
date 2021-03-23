@@ -135,23 +135,21 @@ bool cast_device::connect()
         while(this->m_connected.load())
         {
             try {
-                cast_message msg;
-
-                // TODO Continue reading until len was read -> do-while
+                // Read raw protobuf from the wire
                 uint32_t len;
                 this->m_sock->read(net::span {&len, 1});
                 len = ntohl(len);
                 std::array<char, 4096> buffer;
-                size_t br =  this->m_sock->read(net::span {buffer.data(), len});
-
-                if(len > 0 && msg.ParseFromArray(buffer.data(), len))
+                for(size_t br = 0; br < len; )
                 {
+                    br += this->m_sock->read(net::span {buffer.data() + br, len - br});
+                }
 
+                // Parse protobuf
+                if(cast_message msg; len > 0 && msg.ParseFromArray(buffer.data(), len))
+                {
                     json payload = json::parse((msg.payload_type() == msg.STRING) ?
                         msg.payload_utf8() : msg.payload_binary());
-
-                    // std::cout << "Received : " << payload["requestId"] << std::endl;
-                    // std::cout << payload.dump(2) << "--------------------------\n";
 
                     // Check if message contains requestId because we dont want to store other messages
                     if(payload.contains("requestId") && payload["requestId"].is_number())
@@ -165,10 +163,13 @@ bool cast_device::connect()
                     }
                 }
 
+                // TODO Maybe do this differently?
                 std::this_thread::sleep_for(500ms);
             } catch(std::runtime_error& e) {
+                // Socket read failure or protobuf failure
                 std::cout << e.what() << std::endl;
             } catch(json::parse_error& e) {
+                // JSON parsing failure
                 std::cout << e.what() << std::endl;
             }
         }
