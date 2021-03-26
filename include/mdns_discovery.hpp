@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include <map>
+#include <unordered_map>
 
 #include <sys/socket.h>
 
@@ -37,7 +37,7 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name);
 
 void parse_ptr_record(const mdns_record& rec, std::string& dest_name);
 
-void parse_txt_record(const mdns_record& rec, std::map<std::string, std::string>& dest_txt);
+void parse_txt_record(const mdns_record& rec, std::unordered_map<std::string, std::string>& dest_txt);
 
 void parse_srv_record(const mdns_record& rec, uint32_t& dest_port, std::string& dest_target);
 
