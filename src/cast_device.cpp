@@ -317,7 +317,7 @@ bool cast_device::send(const std::string_view nspace, std::string_view payload, 
     msg.set_destination_id(dest_id.data());
     msg.set_payload_utf8(payload.data());
 
-    uint32_t len = msg.ByteSize();
+    uint32_t len = msg.ByteSizeLong();
 
     std::vector<char> data;
     data.resize(4 + len);
@@ -349,7 +349,7 @@ json cast_device::send_recv(const std::string_view nspace, const json& payload, 
     int64_t req_id = (payload.contains("requestId") && payload["requestId"].is_number()) ? 
         static_cast<int64_t>(payload["requestId"]) : -1;
 
-    uint32_t len = msg.ByteSize();
+    uint32_t len = msg.ByteSizeLong();
     std::vector<char> data;
     data.resize(4 + len);
     *reinterpret_cast<uint32_t*>(data.data()) = htonl(len);

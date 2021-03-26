@@ -100,7 +100,7 @@ void request::parse(const char* request)
     /* Parse POST parameters */
     if(m_method == "POST" || m_method == "post")
     {
-        int length;
+        int length = 0;
         std::string_view hdr = get_header("Content-Length");
         auto res = std::from_chars(hdr.data(), hdr.data() + hdr.size(), length);
         if(res.ec != std::errc::invalid_argument && length > 0)
