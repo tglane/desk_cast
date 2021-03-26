@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
-#include <map>
+#include <unordered_map>
 #include <future>
 #include <atomic>
 #include <mutex>
@@ -111,7 +111,7 @@ private:
     std::future<void> m_recv_loop;
 
     using cond_ptr = std::unique_ptr<std::condition_variable>;
-    mutable std::map<uint64_t, std::pair<cond_ptr, json>> m_msg_store;
+    mutable std::unordered_map<uint64_t, std::pair<cond_ptr, json>> m_msg_store;
 
     mutable std::mutex m_msg_mutex;
 
@@ -119,17 +119,17 @@ private:
 
     std::atomic<bool> m_connected = ATOMIC_VAR_INIT(false);
 
-    std::string m_name;                             // From PTR record
+    std::string m_name;                                 // From PTR record
 
-    std::string m_target;                           // From SRV record
+    std::string m_target;                               // From SRV record
 
-    std::map<std::string, std::string> m_txt;       // From TXT record
+    std::unordered_map<std::string, std::string> m_txt; // From TXT record
 
-    std::string m_ip;                               // From A record
+    std::string m_ip;                                   // From A record
 
-    uint32_t m_port;                                // From SRV record
+    uint32_t m_port;                                    // From SRV record
 
-    mutable uint64_t m_request_id = 0;              // Up counting id to identify requests and responses
+    mutable uint64_t m_request_id = 0;                  // Up counting id to identify requests and responses
 
 };
 

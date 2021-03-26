@@ -216,7 +216,7 @@ void parse_ptr_record(const mdns_record& rec, std::string& dest_name)
         dest_name = std::string {rec.data.begin() + 1, rec.data.end()};
 }
 
-void parse_txt_record(const mdns_record& rec, std::map<std::string, std::string>& dest_txt)
+void parse_txt_record(const mdns_record& rec, std::unordered_map<std::string, std::string>& dest_txt)
 {
     // Structure of rec.data: 
     // [1 byte -> len][key=value of length len]...
