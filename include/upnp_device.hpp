@@ -18,17 +18,18 @@ struct upnp_service
     std::string event_sub_url;
 };
 
-class upnp_media_renderer
+// TODO Add device status?
+class upnp_device
 {
 public:
-    upnp_media_renderer() = delete;
-    upnp_media_renderer(const upnp_media_renderer&) = delete;
-    upnp_media_renderer& operator=(const upnp_media_renderer&) = delete;
-    upnp_media_renderer(upnp_media_renderer&&) = default;
-    upnp_media_renderer& operator=(upnp_media_renderer&&) =default;
-    ~upnp_media_renderer() = default;
+    upnp_device() = delete;
+    upnp_device(const upnp_device&) = delete;
+    upnp_device& operator=(const upnp_device&) = delete;
+    upnp_device(upnp_device&&) = default;
+    upnp_device& operator=(upnp_device&&) =default;
+    ~upnp_device() = default;
 
-    upnp_media_renderer(const discovery::ssdp_res& res);
+    upnp_device(const discovery::ssdp_res& res);
 
     bool connect();
 
@@ -37,12 +38,15 @@ public:
     // TODO
     bool use_service(std::string_view service_id) const;
 
+    void launch_media() const;
+
     const upnp_service& get_service_information(std::string_view service_id) const;
 
 private:
 
     std::unique_ptr<net::tcp_connection<net::ip_version::v4>> m_sock {nullptr};
 
+    // TODO only take the important parts of this struct and dont store the complete struct
     discovery::ssdp_res m_discovery_res;
 
     std::vector<upnp_service> m_services;

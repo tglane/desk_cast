@@ -15,35 +15,31 @@ using namespace rapidxml;
 namespace upnp
 {
 
-upnp_media_renderer::upnp_media_renderer(const discovery::ssdp_res& res)
+upnp_device::upnp_device(const discovery::ssdp_res& res)
     : m_discovery_res {res}
 {}
 
-bool upnp_media_renderer::connect()
+bool upnp_device::connect()
 {
-    try {
-        m_sock = std::make_unique<net::tcp_connection<net::ip_version::v4>>(m_discovery_res.location.ip, m_discovery_res.location.port);
-    } catch(std::runtime_error&) {
-        return false;
-    }
+    net::tcp_connection<net::ip_version::v4> sock {m_discovery_res.location.ip, m_discovery_res.location.port};
 
     const discovery::ssdp_location& loc = m_discovery_res.location;
     std::string req_str = ("GET " + loc.path + " HTTP/1.1\r\nHOST: " + loc.ip + ":" + std::to_string(loc.port) +  "\r\n\r\n");
-    m_sock->send(net::span {req_str.begin(), req_str.end()});
+    sock.send(net::span {req_str.begin(), req_str.end()});
 
     // Receive HTTP response containing XML body
     std::array<char, 4096> buffer;
     size_t bytes_read = 0;
     for(size_t br = 0; bytes_read < 4096; )
     {
-        br = m_sock->read(net::span {buffer.data() + br, buffer.size() - br});
+        br = sock.read(net::span {buffer.data() + br, buffer.size() - br});
         if(br == 0)
             break;
         else
             bytes_read += br;
     }
 
-    std::string_view header_termination {"\r\n\r\n"};
+    const std::string_view header_termination {"\r\n\r\n"};
     auto xml_start = std::search(buffer.begin(), buffer.end(), header_termination.begin(), header_termination.end());
     if(xml_start == buffer.end())
         return false;
@@ -57,23 +53,26 @@ bool upnp_media_renderer::connect()
         return false;
     }
 
+    // TODO Store device details in member variable
     xml_node<char>* device_node = doc.first_node()->first_node("device");
     xml_node<char>* service_root = device_node->first_node("serviceList");
     for(xml_node<char>* service_node = service_root->first_node("service"); service_node; service_node = service_node->next_sibling())
     {
-        m_services.emplace_back(upnp_service {
+        const auto& serv = m_services.emplace_back(upnp_service {
             service_node->first_node("serviceId")->value(),
             service_node->first_node("controlURL")->value(),
             service_node->first_node("SCPDURL")->value(),
             service_node->first_node("eventSubURL")->value()
         });
+
+        std::cout << "ID:" << serv.id << " Servies url: " << serv.control_url << '\n';
     }
 
     m_connected = true;
     return true;
 }
 
-bool upnp_media_renderer::service_available(std::string_view service_id) const
+bool upnp_device::service_available(std::string_view service_id) const
 {
     // DLNA devices typically have around 3 to 4 services
     // So using a vector and search for it should be as efficient as using unordered_map/set if not more efficient
@@ -85,7 +84,7 @@ bool upnp_media_renderer::service_available(std::string_view service_id) const
         return false;
 }
 
-bool upnp_media_renderer::use_service(std::string_view service_id) const
+bool upnp_device::use_service(std::string_view service_id) const
 {
     if(!service_available(service_id))
         return false;
@@ -93,7 +92,20 @@ bool upnp_media_renderer::use_service(std::string_view service_id) const
     return true;
 }
 
-const upnp_service& upnp_media_renderer::get_service_information(std::string_view service_id) const
+void upnp_device::launch_media() const
+{
+    std::string request {"POST /dmr/control_2 HTTP/1.1\r\nContent-Type: text/xml\r\nSOAPAction: \"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI\"\r\n\r\n<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><CurrentURI>http://techslides.com/demos/sample-videos/small.mp4</CurrentURI><CurrentURIMetaData /></u:SetAVTransportURI></s:Body></s:Envelope>\r\n\r\n"};
+
+    net::tcp_connection<net::ip_version::v4> sock {m_discovery_res.location.ip, m_discovery_res.location.port};
+    sock.send(net::span {request.begin(), request.end()});
+
+
+    net::tcp_connection<net::ip_version::v4> sock_two {m_discovery_res.location.ip, m_discovery_res.location.port};
+    std::string play_req {"POST /dmr/control_2 HTTP/1.1\r\nContent-Type: text/xml\r\nSOAPAction: \"urn:schemas-upnp-org:service:AVTransport:1#Play\"\r\n\r\n<?xml version=\"1.0\" encoding=\"utf-8\"?><s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\"><s:Body><u:Play xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><Speed>1</Speed></u:Play></s:Body></s:Envelope>\r\n\r\n"};
+    sock_two.send(net::span {play_req.begin(), play_req.end()});
+}
+
+const upnp_service& upnp_device::get_service_information(std::string_view service_id) const
 {
     // DLNA devices typically have around 3 to 4 services
     // So using a vector and search for it should be as efficient as using unordered_map/set if not more efficient

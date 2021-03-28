@@ -62,37 +62,21 @@ static bool launch_app_on_device(device* dev)
 
 static void main_upnp() 
 {
-    // std::vector<discovery::ssdp_res> responses = discovery::ssdp("urn:schemas-upnp-org:device:MediaServer:1");
     std::vector<discovery::ssdp_res> responses = discovery::ssdp("urn:schemas-upnp-org:device:MediaRenderer:1");
     for(const auto& it : responses)
     {
-        upnp::upnp_media_renderer device {it};
-        std::cout << ((device.connect()) ? "true" : "false") << std::endl;
+        upnp::upnp_device device {it};
+        if(!device.connect())
+        {
+            std::cout << "Can not connect to the device.\n";
+            return;
+        }
+        std::cout << "Connected to UPNP Device\n";
+
+        // device.use_service();
+        device.launch_media();
 
         return;
-
-        std::cout << "--------------------\n"
-        << it.location.ip << '\n' << '\n';
-        // << it.location.path << '\n'
-        // << it.location.port << '\n'
-        // << it.server << '\n'
-        // << it.usn << '\n';
-
-        net::tcp_connection<net::ip_version::v4> conn {it.location.ip, it.location.port};
-
-        std::string req_str = ("GET " + it.location.path + " HTTP/1.1\r\nHOST: " + it.location.ip + ":" + std::to_string(it.location.port) +  "\r\n\r\n");
-        std::cout << req_str << '\n';
-        conn.send(net::span {req_str.begin(), req_str.end()});
-
-        // while(!conn.bytes_available())
-        //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        std::array<char, 4096> buffer;
-        size_t br = conn.read(net::span {buffer});
-        std::cout << buffer.data() << std::endl;
-
-        std::cout << "--------------------\n" << std::endl;
-        // TODO Parse and check if there is a service of type dial
-        // parse_services();
     }
 }
 

@@ -38,3 +38,4 @@ std::vector<ssdp_res> ssdp(const std::string& service_type);
 } // namespace discovery
 
 #endif
+
