@@ -9,7 +9,7 @@
 #include "mdns_discovery.hpp"
 #include "device.hpp"
 #include "cast_device.hpp"
-#include "dlna_device.hpp"
+#include "upnp_device.hpp"
 #include "utils.hpp"
 
 #include "http/webserver.hpp"
@@ -66,7 +66,7 @@ static void main_upnp()
     std::vector<discovery::ssdp_res> responses = discovery::ssdp("urn:schemas-upnp-org:device:MediaRenderer:1");
     for(const auto& it : responses)
     {
-        dlna::dlna_media_renderer device {it};
+        upnp::upnp_media_renderer device {it};
         std::cout << ((device.connect()) ? "true" : "false") << std::endl;
 
         return;

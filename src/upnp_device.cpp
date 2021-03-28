@@ -1,4 +1,4 @@
-#include "dlna_device.hpp"
+#include "upnp_device.hpp"
 
 #include "http/request.hpp"
 #include "http/response.hpp"
@@ -12,14 +12,14 @@
 using namespace std::chrono_literals;
 using namespace rapidxml;
 
-namespace dlna
+namespace upnp
 {
 
-dlna_media_renderer::dlna_media_renderer(discovery::ssdp_res res)
+upnp_media_renderer::upnp_media_renderer(const discovery::ssdp_res& res)
     : m_discovery_res {res}
 {}
 
-bool dlna_media_renderer::connect()
+bool upnp_media_renderer::connect()
 {
     try {
         m_sock = std::make_unique<net::tcp_connection<net::ip_version::v4>>(m_discovery_res.location.ip, m_discovery_res.location.port);
@@ -61,7 +61,7 @@ bool dlna_media_renderer::connect()
     xml_node<char>* service_root = device_node->first_node("serviceList");
     for(xml_node<char>* service_node = service_root->first_node("service"); service_node; service_node = service_node->next_sibling())
     {
-        m_services.emplace_back(dlna_service {
+        m_services.emplace_back(upnp_service {
             service_node->first_node("serviceId")->value(),
             service_node->first_node("controlURL")->value(),
             service_node->first_node("SCPDURL")->value(),
@@ -73,15 +73,38 @@ bool dlna_media_renderer::connect()
     return true;
 }
 
-const dlna_service* dlna_media_renderer::get_service_information(const std::string& service_id) const
+bool upnp_media_renderer::service_available(std::string_view service_id) const
 {
     // DLNA devices typically have around 3 to 4 services
     // So using a vector and search for it should be as efficient as using unordered_map/set if not more efficient
-    auto it = std::find_if(m_services.begin(), m_services.end(), [&s_id = service_id](const dlna_service& service) {
+    if(std::find_if(m_services.begin(), m_services.end(), [&s_id = service_id](const upnp_service& service) {
+        return service.id == s_id;
+    }) != m_services.end())
+        return true;
+    else
+        return false;
+}
+
+bool upnp_media_renderer::use_service(std::string_view service_id) const
+{
+    if(!service_available(service_id))
+        return false;
+
+    return true;
+}
+
+const upnp_service& upnp_media_renderer::get_service_information(std::string_view service_id) const
+{
+    // DLNA devices typically have around 3 to 4 services
+    // So using a vector and search for it should be as efficient as using unordered_map/set if not more efficient
+    auto it = std::find_if(m_services.begin(), m_services.end(), [&s_id = service_id](const upnp_service& service) {
         return service.id == s_id;
     });
 
-    return (it != m_services.end()) ? &(*it) : nullptr;
+    if(it != m_services.end())
+        return *it;
+    else
+        throw std::invalid_argument("Service not supported.");
 }
 
 } // namespace dlna
