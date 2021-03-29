@@ -94,11 +94,16 @@ bool upnp_device::use_service(std::string_view service_id) const
 
 void upnp_device::launch_media() const
 {
-    std::string request {"POST /dmr/control_2 HTTP/1.1\r\nContent-Type: text/xml\r\nSOAPAction: \"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI\"\r\n\r\n<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><CurrentURI>http://techslides.com/demos/sample-videos/small.mp4</CurrentURI><CurrentURIMetaData /></u:SetAVTransportURI></s:Body></s:Envelope>\r\n\r\n"};
+    // Method just for checking how to instruct a upnp media renderer to stream a (video) file
+    // Later on there will be only the function use_service() in this class and maybe a seperate upnp renderer/streamer class
+    // std::string request {"POST /dmr/control_2 HTTP/1.1\r\nContent-Type: text/xml\r\nSOAPAction: \"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI\"\r\n\r\n<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><CurrentURI>http://techslides.com/demos/sample-videos/small.mp4</CurrentURI><CurrentURIMetaData /></u:SetAVTransportURI></s:Body></s:Envelope>\r\n\r\n"};
+
+    std::string request {"POST /dmr/control_2 HTTP/1.1\r\nContent-Type: text/xml\r\nSOAPAction: \"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI\"\r\n\r\n<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><CurrentURI>http://192.168.178.20:5770/test_video.mp4</CurrentURI><CurrentURIMetaData /></u:SetAVTransportURI></s:Body></s:Envelope>\r\n\r\n"};
+
+    // std::string request {"POST /dmr/control_2 HTTP/1.1\r\nContent-Type: text/xml; charset=utf-8\r\nSOAPAction: \"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI\"\r\n\r\n<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><CurrentURI>http://192.168.178.20:5770/index.m3u8</CurrentURI><CurrentURIMetaData /></u:SetAVTransportURI></s:Body></s:Envelope>\r\n\r\n"};
 
     net::tcp_connection<net::ip_version::v4> sock {m_discovery_res.location.ip, m_discovery_res.location.port};
     sock.send(net::span {request.begin(), request.end()});
-
 
     net::tcp_connection<net::ip_version::v4> sock_two {m_discovery_res.location.ip, m_discovery_res.location.port};
     std::string play_req {"POST /dmr/control_2 HTTP/1.1\r\nContent-Type: text/xml\r\nSOAPAction: \"urn:schemas-upnp-org:service:AVTransport:1#Play\"\r\n\r\n<?xml version=\"1.0\" encoding=\"utf-8\"?><s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\"><s:Body><u:Play xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><Speed>1</Speed></u:Play></s:Body></s:Envelope>\r\n\r\n"};

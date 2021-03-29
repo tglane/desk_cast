@@ -40,7 +40,7 @@ static void serve_hls_stream(net::tcp_connection<net::ip_version::v4>&& conn)
         return;
     }
 
-    // std::cout << "[DEBUG]:\n" << req.to_string() << std::endl;
+    std::cout << "[DEBUG]:\n" << req.to_string() << std::endl;
 
     std::string_view pv = req.get_path();
     std::string path;
@@ -61,7 +61,8 @@ static void serve_hls_stream(net::tcp_connection<net::ip_version::v4>&& conn)
 
     response res {req};
     res.set_header("Server", "localhost");
-    res.set_header("Content-Type", "application/x-mpegurl");
+    // res.set_header("Content-Type", "application/x-mpegurl");
+    res.set_header("Content-Type", "video/mp4");
 
     if(req.check_header("Range"))
     {

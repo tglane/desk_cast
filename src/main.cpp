@@ -62,6 +62,13 @@ static bool launch_app_on_device(device* dev)
 
 static void main_upnp() 
 {
+    std::atomic<bool> run_condition {true};
+    std::thread webserver_t {[&run_condition]() {
+        http::webserver server {WEBSERVER_PORT, SSL_CERT, SSL_KEY};
+        server.serve(run_condition);
+    }};
+    webserver_t.detach();
+
     std::vector<discovery::ssdp_res> responses = discovery::ssdp("urn:schemas-upnp-org:device:MediaRenderer:1");
     for(const auto& it : responses)
     {
@@ -76,6 +83,8 @@ static void main_upnp()
         // device.use_service();
         device.launch_media();
 
+        for(;;)
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         return;
     }
 }
