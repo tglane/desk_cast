@@ -1,6 +1,8 @@
 #ifndef DEFAULT_MEDIA_RECEIVER_HPP
 #define DEFAULT_MEDIA_RECEIVER_HPP
 
+#include <cassert>
+
 #include "cast_device.hpp"
 
 namespace googlecast
@@ -18,7 +20,8 @@ class default_media_receiver
     enum class dmr_status
     {
         idle,
-        streaming
+        streaming,
+        closed
     };
 
 public:
@@ -32,6 +35,8 @@ public:
 
     bool set_media(const media_data& data)
     {
+        assert(m_status != dmr_status::closed);
+
         json payload;
         payload["media"]["contentId"] = data.url;
         payload["media"]["contentType"] = data.mime_type;
@@ -43,7 +48,8 @@ public:
 
     cast_device get_device()
     {
-        // TODO Move the device out of this class and set status to closed or something
+        // TODO I dont know if this is useful
+        m_status = dmr_status::closed;
         return static_cast<cast_device&&>(m_device);
     }
 
