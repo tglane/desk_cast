@@ -148,8 +148,6 @@ bool cast_device::connect()
                     }
                 }
 
-                // TODO Maybe do this differently?
-                std::this_thread::sleep_for(500ms);
             } catch(std::runtime_error& e) {
                 // Socket read failure or protobuf failure
                 std::cout << e.what() << std::endl;

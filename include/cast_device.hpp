@@ -101,7 +101,6 @@ private:
 
     /// Private member variables
 
-
     ssl_keypair_path m_keypair;
 
     std::unique_ptr<net::tls_connection<net::ip_version::v4>> m_sock {nullptr};
@@ -136,3 +135,4 @@ private:
 } // namespace googlecast
 
 #endif
+
