@@ -18,6 +18,7 @@
 
 using nlohmann::json;
 using cast_message = extensions::core_api::cast_channel::CastMessage;
+using cond_ptr = std::unique_ptr<std::condition_variable>;
 
 namespace googlecast
 {
@@ -90,6 +91,10 @@ private:
         std::string_view key_path;
     };
 
+    class device_connection;
+
+    /// Private member functions
+
     bool send(const std::string_view nspace, std::string_view payload, const std::string_view dest_id = "receiver-0") const;
 
     bool send_json(const std::string_view nspace, json payload, const std::string_view dest_id = "receiver-0") const
@@ -103,13 +108,8 @@ private:
 
     ssl_keypair_path m_keypair;
 
-    std::unique_ptr<net::tls_connection<net::ip_version::v4>> m_sock {nullptr};
+    std::unique_ptr<device_connection> m_connection {nullptr};
 
-    std::future<void> m_heartbeat;
-
-    std::future<void> m_recv_loop;
-
-    using cond_ptr = std::unique_ptr<std::condition_variable>;
     mutable std::unordered_map<uint64_t, std::pair<cond_ptr, json>> m_msg_store;
 
     mutable std::mutex m_msg_mutex;

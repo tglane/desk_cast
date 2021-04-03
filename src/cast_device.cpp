@@ -5,6 +5,10 @@
 #include <utility>
 
 using namespace std::chrono_literals;
+using msg_store = std::unordered_map<uint64_t, std::pair<cond_ptr, json>>;
+
+namespace googlecast
+{
 
 static constexpr const char* source_id = "sender-0";
 static constexpr const char* receiver_id = "receiver-0";
@@ -14,8 +18,115 @@ static constexpr const char* namespace_heartbeat = "urn:x-cast:com.google.cast.t
 static constexpr const char* namespace_receiver = "urn:x-cast:com.google.cast.receiver";
 static constexpr const char* namespace_auth = "urn:x-cast:com.google.cast.tp.deviceauth";
 
-namespace googlecast
+// Utility class to manage the connection and data transmission from and to a googlecast device
+class cast_device::device_connection
 {
+public:
+
+    device_connection() = delete;
+    device_connection(const device_connection&) = delete;
+    device_connection& operator=(const device_connection&) = delete;
+    device_connection(device_connection&&) = delete;
+    device_connection& operator=(device_connection&&) = delete;
+
+    device_connection(msg_store& store, std::string_view cert_path, std::string_view key_path, std::string_view addr, uint16_t port)
+        : m_borrowed_store {store}, m_keep {true}, m_sock {cert_path, key_path, addr, port}
+    {
+        m_receiver = std::async(std::launch::async, [this]()
+        {
+            while(this->m_keep)
+            {
+                try {
+                    // Read raw protobuf from the wire
+                    uint32_t len;
+                    this->m_sock.read(net::span {&len, 1});
+                    len = ntohl(len);
+                    std::array<char, 4096> buffer;
+                    for(size_t br = 0; br < len; )
+                        br += this->m_sock.read(net::span {buffer.data() + br, len - br});
+
+                    // Parse protobuf
+                    if(cast_message msg; len > 0 && msg.ParseFromArray(buffer.data(), len))
+                    {
+                        json payload = json::parse((msg.payload_type() == msg.STRING) ?
+                            msg.payload_utf8() : msg.payload_binary());
+
+                        // Check if message contains requestId because we dont bother message without requestId
+                        if(payload.contains("requestId") && payload["requestId"].is_number())
+                        {
+                            auto msg_iter = this->m_borrowed_store.find(payload["requestId"]);
+                            if(msg_iter != this->m_borrowed_store.end())
+                            {
+                                msg_iter->second.second = payload;
+                                msg_iter->second.first->notify_all();
+                            }
+                        }
+                    }
+                } catch(std::runtime_error& e) {
+                    std::cout << e.what() << '\n';
+                } catch(json::parse_error& e) {
+                    std::cout << e.what() << '\n';
+                }
+            }
+        });
+   }
+
+    ~device_connection()
+    {
+        m_keep = false;
+        m_receiver.get();
+        m_heartbeat.get();
+    }
+
+    void start_heartbeat()
+    {
+        m_heartbeat = std::async(std::launch::async, [this]()
+        {
+            while(this->m_keep)
+            {
+                cast_message msg;
+                msg.set_payload_type(msg.STRING);
+                msg.set_protocol_version(msg.CASTV2_1_0);
+                msg.set_namespace_(namespace_heartbeat);
+                msg.set_source_id(source_id);
+                msg.set_destination_id(receiver_id);
+                msg.set_payload_utf8(R"("type":"GET_STATUS","requestId":0)");
+                
+                uint32_t len = msg.ByteSizeLong();
+
+                std::vector<char> data;
+                data.resize(4 + len);
+                *reinterpret_cast<uint32_t*>(data.data()) = htonl(len);
+
+                msg.SerializeToArray(&data[4], len);
+
+                this->send(net::span {data.begin(), data.end()});    
+
+                std::this_thread::sleep_for(4500ms);
+            }
+        });
+    }
+
+    template<typename T>
+    inline void send(net::span<T>&& buffer)
+    {
+        try {
+            m_sock.send(static_cast<net::span<T>&&>(buffer));
+        } catch(std::runtime_error&) {}
+    }
+
+private:
+
+    std::unordered_map<uint64_t, std::pair<cond_ptr, json>>& m_borrowed_store;
+
+    bool m_keep;
+
+    net::tls_connection<net::ip_version::v4> m_sock;
+
+    std::future<void> m_heartbeat;
+
+    std::future<void> m_receiver;
+};
 
 cast_device::cast_device(const discovery::mdns_res& res, std::string_view ssl_cert, std::string_view ssl_key)
     : m_keypair {ssl_cert, ssl_key}
@@ -56,15 +167,8 @@ cast_device::cast_device(const discovery::mdns_res& res, std::string_view ssl_ce
 }
 
 cast_device::cast_device(cast_device&& other)
-   : m_keypair {std::move(other.m_keypair)}, m_sock {std::move(other.m_sock)}, m_heartbeat {std::move(other.m_heartbeat)}, m_recv_loop {std::move(other.m_recv_loop)},
-     m_msg_store {std::move(other.m_msg_store)}, m_active_app {std::move(other.m_active_app)},
-     m_connected {other.m_connected.load()}, m_name {std::move(other.m_name)}, m_target {std::move(other.m_target)}, 
-     m_txt{std::move(other.m_txt)}, m_ip {std::move(other.m_ip)}, m_port {other.m_port}, m_request_id {other.m_request_id}
 {
-
-    other.m_connected.exchange(false);
-    other.m_request_id = 0;
-    other.m_port = 0;
+    *this = std::move(other);
 }
 
 cast_device& cast_device::operator=(cast_device&& other)
@@ -72,9 +176,7 @@ cast_device& cast_device::operator=(cast_device&& other)
     if(this != &other)
     {
         m_keypair = std::move(other.m_keypair);
-        m_sock = std::move(other.m_sock);
-        m_heartbeat = std::move(other.m_heartbeat);
-        m_recv_loop = std::move(other.m_recv_loop);
+        m_connection = std::move(other.m_connection);
         m_msg_store = std::move(other.m_msg_store);
         m_active_app = std::move(other.m_active_app);
         m_connected.exchange(other.m_connected.load());
@@ -86,8 +188,6 @@ cast_device& cast_device::operator=(cast_device&& other)
         m_request_id = other.m_request_id;
 
         other.m_connected.exchange(false);
-        other.m_request_id = 0;
-        other.m_port = 0;
     }
     
     return *this;
@@ -98,8 +198,6 @@ cast_device::~cast_device()
     if(m_connected.load())
     {
         m_connected.exchange(false);
-        m_recv_loop.get();
-        m_heartbeat.get();
         send(namespace_connection, "", R"({ "type": "CLOSE"})");
     }
 }
@@ -109,66 +207,16 @@ bool cast_device::connect()
     if(m_connected.load())
         return false;
 
-    // Connecto on socket level
-    m_sock = std::make_unique<net::tls_connection<net::ip_version::v4>>(m_keypair.cert_path, m_keypair.key_path, m_ip, m_port);
+    if(!m_connection)
+        m_connection = std::make_unique<device_connection>(m_msg_store, m_keypair.cert_path, m_keypair.key_path, m_ip, m_port);
 
     send(namespace_connection, R"({ "type": "CONNECT" })");
+
     m_connected.exchange(true);
 
-    m_recv_loop = std::async(std::launch::async, [this]()
-    {
-        while(this->m_connected.load())
-        {
-            try {
-                // Read raw protobuf from the wire
-                uint32_t len;
-                this->m_sock->read(net::span {&len, 1});
-                len = ntohl(len);
-                std::array<char, 4096> buffer;
-                for(size_t br = 0; br < len; )
-                {
-                    br += this->m_sock->read(net::span {buffer.data() + br, len - br});
-                }
-
-                // Parse protobuf
-                if(cast_message msg; len > 0 && msg.ParseFromArray(buffer.data(), len))
-                {
-                    json payload = json::parse((msg.payload_type() == msg.STRING) ?
-                        msg.payload_utf8() : msg.payload_binary());
-
-                    // Check if message contains requestId because we dont want to store other messages
-                    if(payload.contains("requestId") && payload["requestId"].is_number())
-                    {
-                        auto msg_iter = this->m_msg_store.find(payload["requestId"]);
-                        if(msg_iter != this->m_msg_store.end())
-                        {
-                            msg_iter->second.second = payload;
-                            msg_iter->second.first->notify_all();
-                        }
-                    }
-                }
-
-            } catch(std::runtime_error& e) {
-                // Socket read failure or protobuf failure
-                std::cout << e.what() << std::endl;
-            } catch(json::parse_error& e) {
-                // JSON parsing failure
-                std::cout << e.what() << std::endl;
-            }
-        }
-    });
-
-    json recv = send(namespace_receiver, R"({ "type": "GET_STATUS", "requestId": 0 })");
-
-    // Launch the heartbeat signal to keep the connection alive
-    m_heartbeat = std::async(std::launch::async, [this]() -> void
-    {
-        while(this->m_connected.load())
-        {
-            this->send(namespace_heartbeat, R"({ "type": "PING" })");
-            std::this_thread::sleep_for(4500ms);
-        }
-    });
+    send(namespace_receiver, R"({ "type": "GET_STATUS", "requestId": 0 })");
+    
+    m_connection->start_heartbeat();
 
     return true;
 }
@@ -177,6 +225,8 @@ bool cast_device::disconnect()
 {
     if(!m_connected.load() || !send(namespace_connection, R"({"type": "CLOSE"})"))
         return false;
+
+    m_connection.reset(nullptr);
 
     m_connected.exchange(false);
     return true;
@@ -309,11 +359,7 @@ bool cast_device::send(const std::string_view nspace, std::string_view payload, 
     if(!msg.SerializeToArray(&data[4], len))
         return false;
 
-    try {
-        m_sock->send(net::span {data});
-    } catch(std::runtime_error& e) {
-        return false;
-    }
+    m_connection->send(net::span {data});
 
     return true;
 }
@@ -343,11 +389,7 @@ json cast_device::send_recv(const std::string_view nspace, const json& payload, 
     m_msg_store[req_id] = std::make_pair<cond_ptr, json>(std::make_unique<std::condition_variable>(), json {});
     const auto& msg_pair = m_msg_store[req_id];
 
-    try {
-        m_sock->send(net::span {data});
-    } catch(std::runtime_error& e) {
-        return recv;
-    }
+    m_connection->send(net::span {data});
 
     if(std::unique_lock<std::mutex> lock {m_msg_mutex}; req_id != -1 && msg_pair.first->wait_for(lock, 5000ms) == std::cv_status::no_timeout)
     {

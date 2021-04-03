@@ -9,6 +9,7 @@
 #include "mdns_discovery.hpp"
 #include "device.hpp"
 #include "cast_device.hpp"
+#include "default_media_receiver.hpp"
 #include "utils.hpp"
 
 #include "http/webserver.hpp"
@@ -168,6 +169,9 @@ int main()
     // worker.emplace_back(init_capture, std::ref(run_condition));
 
     std::cout << (launch_app_on_device(*device) ? "Launched" : "Launch error") << std::endl;
+    // std::cout << "test1" << std::endl;
+    // googlecast::default_media_receiver dmr {static_cast<googlecast::cast_device&&>(*device)};
+    // std::cout << "test2" << std::endl;
 
     // Wait for signal and shut down all threads
     int signal = signal_handler.get();

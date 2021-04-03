@@ -1,7 +1,8 @@
 #ifndef DEFAULT_MEDIA_RECEIVER_HPP
 #define DEFAULT_MEDIA_RECEIVER_HPP
 
-#include <cassert>
+#include <memory>
+#include <iostream>
 
 #include "cast_device.hpp"
 
@@ -27,15 +28,30 @@ class default_media_receiver
 public:
 
     explicit default_media_receiver(cast_device&& device)
-        : m_status {dmr_status::idle}, m_device {static_cast<cast_device&&>(device)}
+        : m_status {dmr_status::idle}, m_device {std::make_unique<cast_device>(std::move(device))}
     {
-        // TODO Make sure the default media receiver is supported by the given device
         // TODO Maybe launch the dmr but without any content?
+        // TODO Check if the device is connected
+        std::cout << "Hello" << std::endl;
+        if(!m_device->app_available("CC1AD845"))
+            throw std::runtime_error {"Device does not support Default Media Receiver."};
+        std::cout << "Hallo" << std::endl;
+    }
+
+    explicit default_media_receiver(std::unique_ptr<cast_device>&& device_ptr)
+        : m_status {dmr_status::idle}, m_device {static_cast<std::unique_ptr<cast_device>&&>(device_ptr)}
+    {
+        // TODO Check if the device is connected
+        std::cout << "ptr hello" << std::endl;
+        if(!m_device->app_available("CC1AD845"))
+            throw std::runtime_error {"Device does not support Default Media Receiver."};
+        std::cout << "ptr Hallo" << std::endl;
     }
 
     bool set_media(const media_data& data)
     {
-        assert(m_status != dmr_status::closed);
+        if(m_status == dmr_status::closed)
+            throw std::runtime_error {"Connection already closed."};
 
         json payload;
         payload["media"]["contentId"] = data.url;
@@ -43,21 +59,21 @@ public:
         payload["media"]["streamType"] = "LIVE"; // TODO Figure out how to set this correct for all content types
         payload["type"] = "LOAD";
 
-        return m_device.launch_app("CC1AD845", static_cast<json&&>(payload));
+        return m_device->launch_app("CC1AD845", static_cast<json&&>(payload));
     }
 
-    cast_device get_device()
+    std::unique_ptr<cast_device>&& get_device()
     {
         // TODO I dont know if this is useful
         m_status = dmr_status::closed;
-        return static_cast<cast_device&&>(m_device);
+        return static_cast<std::unique_ptr<cast_device>&&>(m_device);
     }
 
 private:
 
     dmr_status m_status;
 
-    cast_device m_device;
+    std::unique_ptr<cast_device> m_device;
 
 };
 
