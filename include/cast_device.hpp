@@ -30,7 +30,7 @@ struct app_details
     std::string transport_id;
     json namespaces;
 
-    operator bool() const
+    explicit operator bool() const
     {
         return (!id.empty() && !transport_id.empty() && !session_id.empty());
     }
@@ -51,7 +51,7 @@ public:
     cast_device() = delete;
     cast_device(const cast_device&) = delete;
     cast_device& operator=(const cast_device&) = delete;
-    cast_device(cast_device&& other);
+    cast_device(cast_device&& other) noexcept;
     cast_device& operator=(cast_device&& other);
     ~cast_device();
 
@@ -87,22 +87,22 @@ private:
 
     struct ssl_keypair_path
     {
-        std::string_view cert_path;
-        std::string_view key_path;
+        std::string cert_path;
+        std::string key_path;
     };
 
     class device_connection;
 
     /// Private member functions
 
-    bool send(const std::string_view nspace, std::string_view payload, const std::string_view dest_id = "receiver-0") const;
+    bool send(std::string_view nspace, std::string_view payload, std::string_view dest_id = "receiver-0") const;
 
-    bool send_json(const std::string_view nspace, json payload, const std::string_view dest_id = "receiver-0") const
+    bool send_json(const std::string_view nspace, const json& payload, const std::string_view dest_id = "receiver-0") const
     {
         return send(nspace, std::string_view {payload.dump()}, dest_id);
     }
 
-    json send_recv(const std::string_view nspace, const json& payload, const std::string_view dest_id = "receiver-0") const;
+    json send_recv(std::string_view nspace, const json& payload, std::string_view dest_id = "receiver-0") const;
 
     /// Private member variables
 

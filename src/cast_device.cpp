@@ -29,7 +29,7 @@ public:
     device_connection(device_connection&&) = delete;
     device_connection& operator=(device_connection&&) = delete;
 
-    device_connection(msg_store& store, std::string_view cert_path, std::string_view key_path, std::string_view addr, uint16_t port)
+    device_connection(msg_store* store, std::string_view cert_path, std::string_view key_path, std::string_view addr, uint16_t port)
         : m_borrowed_store {store}, m_keep {true}, m_sock {cert_path, key_path, addr, port}
     {
         m_receiver = std::async(std::launch::async, [this]()
@@ -48,14 +48,14 @@ public:
                     // Parse protobuf
                     if(cast_message msg; len > 0 && msg.ParseFromArray(buffer.data(), len))
                     {
-                        json payload = json::parse((msg.payload_type() == msg.STRING) ?
+                        json payload = json::parse((msg.payload_type() == cast_message::STRING) ?
                             msg.payload_utf8() : msg.payload_binary());
 
                         // Check if message contains requestId because we dont bother message without requestId
                         if(payload.contains("requestId") && payload["requestId"].is_number())
                         {
-                            auto msg_iter = this->m_borrowed_store.find(payload["requestId"]);
-                            if(msg_iter != this->m_borrowed_store.end())
+                            auto msg_iter = this->m_borrowed_store->find(payload["requestId"]);
+                            if(msg_iter != this->m_borrowed_store->end())
                             {
                                 msg_iter->second.second = payload;
                                 msg_iter->second.first->notify_all();
@@ -85,8 +85,8 @@ public:
             while(this->m_keep)
             {
                 cast_message msg;
-                msg.set_payload_type(msg.STRING);
-                msg.set_protocol_version(msg.CASTV2_1_0);
+                msg.set_payload_type(cast_message::STRING);
+                msg.set_protocol_version(cast_message::CASTV2_1_0);
                 msg.set_namespace_(namespace_heartbeat);
                 msg.set_source_id(source_id);
                 msg.set_destination_id(receiver_id);
@@ -115,9 +115,14 @@ public:
         } catch(std::runtime_error&) {}
     }
 
+    void reset_borrowed_store(msg_store* new_store)
+    {
+        m_borrowed_store = new_store;
+    }
+
 private:
 
-    std::unordered_map<uint64_t, std::pair<cond_ptr, json>>& m_borrowed_store;
+    msg_store* m_borrowed_store;
 
     bool m_keep;
 
@@ -129,7 +134,7 @@ private:
 };
 
 cast_device::cast_device(const discovery::mdns_res& res, std::string_view ssl_cert, std::string_view ssl_key)
-    : m_keypair {ssl_cert, ssl_key}
+    : m_keypair {std::string {ssl_cert.data(), ssl_cert.size()}, std::string {ssl_key.data(), ssl_cert.size()}}
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -164,9 +169,11 @@ cast_device::cast_device(const discovery::mdns_res& res, std::string_view ssl_ce
                 break;
         }
     }
+
+    // TODO Check that all necessary fields are initialized (port, ip, ...)
 }
 
-cast_device::cast_device(cast_device&& other)
+cast_device::cast_device(cast_device&& other) noexcept
 {
     *this = std::move(other);
 }
@@ -186,6 +193,8 @@ cast_device& cast_device::operator=(cast_device&& other)
         m_ip = std::move(other.m_ip);
         m_port = other.m_port;
         m_request_id = other.m_request_id;
+
+        m_connection->reset_borrowed_store(&m_msg_store);
 
         other.m_connected.exchange(false);
     }
@@ -208,7 +217,7 @@ bool cast_device::connect()
         return false;
 
     if(!m_connection)
-        m_connection = std::make_unique<device_connection>(m_msg_store, m_keypair.cert_path, m_keypair.key_path, m_ip, m_port);
+        m_connection = std::make_unique<device_connection>(&m_msg_store, m_keypair.cert_path, m_keypair.key_path, m_ip, m_port);
 
     send(namespace_connection, R"({ "type": "CONNECT" })");
 
@@ -343,8 +352,8 @@ json cast_device::get_status() const
 bool cast_device::send(const std::string_view nspace, std::string_view payload, const std::string_view dest_id) const
 {
     cast_message msg;
-    msg.set_payload_type(msg.STRING);
-    msg.set_protocol_version(msg.CASTV2_1_0);
+    msg.set_payload_type(cast_message::STRING);
+    msg.set_protocol_version(cast_message::CASTV2_1_0);
     msg.set_namespace_(nspace.data());
     msg.set_source_id(source_id);
     msg.set_destination_id(dest_id.data());
@@ -364,12 +373,12 @@ bool cast_device::send(const std::string_view nspace, std::string_view payload, 
     return true;
 }
 
-json cast_device::send_recv(const std::string_view nspace, const json& payload, const std::string_view dest_id) const
+json cast_device::send_recv(std::string_view nspace, const json& payload, std::string_view dest_id) const
 {
     json recv;
     cast_message msg;
-    msg.set_payload_type(msg.STRING);
-    msg.set_protocol_version(msg.CASTV2_1_0);
+    msg.set_payload_type(cast_message::STRING);
+    msg.set_protocol_version(cast_message::CASTV2_1_0);
     msg.set_namespace_(nspace.data());
     msg.set_source_id(source_id);
     msg.set_destination_id(dest_id.data());

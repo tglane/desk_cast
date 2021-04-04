@@ -1,7 +1,7 @@
 #include <iostream>
 #include <memory>
 #include <thread>
-#include <signal.h>
+#include <csignal>
 
 #include "socketwrapper.hpp"
 
@@ -28,11 +28,11 @@ static std::vector<std::unique_ptr<device>> get_devices()
     // Get googlecast devices via mdns request
 
     std::vector<discovery::mdns_res> mdns = discovery::mdns_discovery("_googlecast._tcp.local");
-    if(mdns.size() > 0)
+    if(!mdns.empty())
     {
-        for(size_t i = 0; i < mdns.size(); i++)
+        for(const auto& mdns_res : mdns)
         {
-            devices.push_back(std::make_unique<googlecast::cast_device>(mdns[i], std::string_view {SSL_CERT}, std::string_view {SSL_KEY}));
+            devices.push_back(std::make_unique<googlecast::cast_device>(mdns_res, std::string_view {SSL_CERT}, std::string_view {SSL_KEY}));
         }
     }
 
@@ -52,22 +52,6 @@ static device_ptr& select_device(std::vector<device_ptr>& devices)
         selected = 0; // Default selection
 
     return devices[selected];
-}
-
-static bool launch_app_on_device(device& dev)
-{
-    // TODO Change this to work with all device types
-    json media_payload;
-    try {
-        media_payload["media"]["contentId"] = "http://" + utils::get_local_ipaddr() + ":5770/index.m3u8";
-        media_payload["media"]["contentType"] = "application/x-mpegurl";
-        media_payload["media"]["streamType"] = "LIVE";
-        media_payload["type"] = "LOAD";
-    } catch(std::runtime_error&) {
-        return false;
-    }
-
-    return dev.launch_app("CC1AD845", std::move(media_payload));
 }
 
 static void main_dial() 
@@ -145,7 +129,7 @@ int main()
     // -> Launch the app on the selected device in main thread
 
     std::vector<device_ptr> device_list = get_devices();
-    if(device_list.size() == 0)
+    if(device_list.empty())
     {
         std::cout << "No devices found...\nPress Ctrl+C to exit.\n";
         signal_handler.get();
@@ -168,10 +152,9 @@ int main()
     });
     // worker.emplace_back(init_capture, std::ref(run_condition));
 
-    std::cout << (launch_app_on_device(*device) ? "Launched" : "Launch error") << std::endl;
-    // std::cout << "test1" << std::endl;
-    // googlecast::default_media_receiver dmr {static_cast<googlecast::cast_device&&>(*device)};
-    // std::cout << "test2" << std::endl;
+    googlecast::default_media_receiver dmr {*reinterpret_cast<googlecast::cast_device*>(device.get())};
+    std::cout << (dmr.set_media(googlecast::media_data {"http://" + utils::get_local_ipaddr() + ":5770/index.m3u8", "application/x-mpegurl"}) ?
+        "Launched" : "Launch error") << std::endl;
 
     // Wait for signal and shut down all threads
     int signal = signal_handler.get();
