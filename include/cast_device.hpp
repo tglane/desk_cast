@@ -52,14 +52,14 @@ public:
     cast_device(const cast_device&) = delete;
     cast_device& operator=(const cast_device&) = delete;
     cast_device(cast_device&& other) noexcept;
-    cast_device& operator=(cast_device&& other);
+    cast_device& operator=(cast_device&& other) noexcept;
     ~cast_device();
 
     cast_device(const discovery::mdns_res& res, std::string_view ssl_cert, std::string_view ssl_key);
     
-    bool connect();
+    bool connect() override;
 
-    bool disconnect();
+    bool disconnect() override;
 
     bool app_available(std::string_view app_id) const;
 
@@ -67,9 +67,9 @@ public:
 
     void close_app();
 
-    bool set_volume(double level);
+    bool set_volume(double level) override;
 
-    bool set_muted(bool muted);
+    bool set_muted(bool muted) override;
 
     json get_status() const;
 
@@ -78,7 +78,7 @@ public:
         return m_active_app;
     }
 
-    inline const std::string& get_name() const
+    inline const std::string& get_name() const override
     {
         return m_name;
     }
@@ -135,4 +135,3 @@ private:
 } // namespace googlecast
 
 #endif
-

@@ -41,12 +41,14 @@ static std::vector<std::unique_ptr<device>> get_devices()
 
 static device_ptr& select_device(std::vector<device_ptr>& devices)
 {
-    size_t selected;
+    std::cout << "Detected " << devices.size() << " device(s) on the network.\n------------------------------------\n";
     for(size_t i = 0; i < devices.size(); i++)
     {
         std::cout << i << " | " << devices[i]->get_name() << '\n';
     }
     std::cout << "\nSelect the device you want to connect to:\n>> ";
+
+    size_t selected;
     std::cin >> selected;
     if(selected >= devices.size())
         selected = 0; // Default selection
@@ -121,13 +123,7 @@ int main()
         return signum;
     });
 
-    // TODO Split up code
-    // -> Create condition to close app...
-    // -> Use main_dial/main_mdns to get the device to connect to
-    // -> When we have a device, launch screenrecorder in background thread (not implemented yet) (loop)
-    // -> Launch webserver serving the cast devices in background thread (loop)
-    // -> Launch the app on the selected device in main thread
-
+    std::cout << "Scanning network for cast-enabled devices...\n";
     std::vector<device_ptr> device_list = get_devices();
     if(device_list.empty())
     {

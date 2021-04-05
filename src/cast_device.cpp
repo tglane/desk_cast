@@ -178,7 +178,7 @@ cast_device::cast_device(cast_device&& other) noexcept
     *this = std::move(other);
 }
 
-cast_device& cast_device::operator=(cast_device&& other)
+cast_device& cast_device::operator=(cast_device&& other) noexcept
 {
     if(this != &other)
     {
@@ -410,4 +410,3 @@ json cast_device::send_recv(std::string_view nspace, const json& payload, std::s
 }
 
 } // namespace googlecast
-
