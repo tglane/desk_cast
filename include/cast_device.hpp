@@ -56,7 +56,7 @@ public:
     ~cast_device();
 
     cast_device(const discovery::mdns_res& res, std::string_view ssl_cert, std::string_view ssl_key);
-    
+
     bool connect() override;
 
     bool disconnect() override;
@@ -72,6 +72,11 @@ public:
     bool set_muted(bool muted) override;
 
     json get_status() const;
+
+    bool connected() const
+    {
+        return m_connected.load();
+    }
 
     inline app_details get_app_details() const
     {

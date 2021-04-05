@@ -23,7 +23,6 @@
 static std::vector<std::unique_ptr<device>> get_devices()
 {
     std::vector<std::unique_ptr<device>> devices;
-
     // TODO Extend this to get all device types available
     // Get googlecast devices via mdns request
 
@@ -56,7 +55,7 @@ static device_ptr& select_device(std::vector<device_ptr>& devices)
     return devices[selected];
 }
 
-static void main_dial() 
+static void main_dial()
 {
     std::vector<discovery::ssdp_res> responses = discovery::upnp_discovery();
     for(const auto& it : responses)

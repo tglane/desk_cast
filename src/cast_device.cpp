@@ -91,7 +91,7 @@ public:
                 msg.set_source_id(source_id);
                 msg.set_destination_id(receiver_id);
                 msg.set_payload_utf8(R"("type":"GET_STATUS","requestId":0)");
-                
+
                 uint32_t len = msg.ByteSizeLong();
 
                 std::vector<char> data;
@@ -100,7 +100,7 @@ public:
 
                 msg.SerializeToArray(&data[4], len);
 
-                this->send(net::span {data.begin(), data.end()});    
+                this->send(net::span {data.begin(), data.end()});
 
                 std::this_thread::sleep_for(4500ms);
             }
@@ -198,7 +198,7 @@ cast_device& cast_device::operator=(cast_device&& other) noexcept
 
         other.m_connected.exchange(false);
     }
-    
+
     return *this;
 }
 
@@ -224,7 +224,7 @@ bool cast_device::connect()
     m_connected.exchange(true);
 
     send(namespace_receiver, R"({ "type": "GET_STATUS", "requestId": 0 })");
-    
+
     m_connection->start_heartbeat();
 
     return true;
@@ -249,7 +249,7 @@ bool cast_device::app_available(std::string_view app_id) const
 
     json recv = send_recv(namespace_receiver, obj);
 
-    if(!recv.empty() && recv["responseType"] == "GET_APP_AVAILABILITY" && 
+    if(!recv.empty() && recv["responseType"] == "GET_APP_AVAILABILITY" &&
         recv["availability"][app_id.data()] == "APP_AVAILABLE")
         return true;
 
@@ -290,10 +290,10 @@ bool cast_device::launch_app(std::string_view app_id, json&& launch_payload)
             launch_payload["requestId"] = req_id;
             j_recv = send_recv("urn:x-cast:com.google.cast.media", launch_payload, m_active_app.transport_id);
 
-            if(j_recv.contains("type") && j_recv["type"] == "MEDIA_STATUS") 
+            if(j_recv.contains("type") && j_recv["type"] == "MEDIA_STATUS")
             {
                 return true;
-            } 
+            }
             else
             {
                 m_active_app.clear();
@@ -343,7 +343,7 @@ json cast_device::get_status() const
 {
     if(!m_connected.load())
         return {};
-    
+
     json obj = json::parse(R"({ "type": "GET_STATUS" })");
     obj["requestId"] = ++m_request_id;
     return send_recv(namespace_receiver, obj);
@@ -384,7 +384,7 @@ json cast_device::send_recv(std::string_view nspace, const json& payload, std::s
     msg.set_destination_id(dest_id.data());
     msg.set_payload_utf8(payload.dump());
 
-    int64_t req_id = (payload.contains("requestId") && payload["requestId"].is_number()) ? 
+    int64_t req_id = (payload.contains("requestId") && payload["requestId"].is_number()) ?
         static_cast<int64_t>(payload["requestId"]) : -1;
 
     uint32_t len = msg.ByteSizeLong();

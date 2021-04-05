@@ -11,7 +11,7 @@ namespace googlecast
 
 struct media_data
 {
-    // TODO
+    // TODO Maybe add more states if necessary
     std::string url;
     std::string mime_type;
 };
@@ -30,10 +30,18 @@ public:
     explicit default_media_receiver(cast_device& device)
         : m_status {dmr_status::idle}, m_device {device}
     {
-        // TODO Maybe launch the dmr but without any content?
-        // TODO Check if the device is connected
+        if(!m_device.connected())
+        {
+            // TODO Improve this
+            for(uint8_t i = 0; !m_device.connect() && i < 5; ++i);
+            if(!m_device.connected())
+                throw std::runtime_error {"Can not connect to device."};
+        }
+
         if(!m_device.app_available("CC1AD845"))
             throw std::runtime_error {"Device does not support Default Media Receiver."};
+
+        // TODO Maybe launch the dmr but without any content?
     }
 
     bool set_media(const media_data& data)
