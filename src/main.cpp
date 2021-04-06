@@ -1,7 +1,8 @@
-#include <iostream>
 #include <memory>
 #include <thread>
 #include <csignal>
+
+#include "fmt/format.h"
 
 #include "socketwrapper.hpp"
 
@@ -40,12 +41,12 @@ static std::vector<std::unique_ptr<device>> get_devices()
 
 static device_ptr& select_device(std::vector<device_ptr>& devices)
 {
-    std::cout << "Detected " << devices.size() << " device(s) on the network.\n------------------------------------\n";
+    fmt::print("Detected {} device(s) in your local network.\n-------------------------------\n", devices.size());
     for(size_t i = 0; i < devices.size(); i++)
     {
-        std::cout << i << " | " << devices[i]->get_name() << '\n';
+        fmt::print("{} | {}\n", i, devices[i]->get_name());
     }
-    std::cout << "\nSelect the device you want to connect to:\n>> ";
+    fmt::print("\nSelect the device you want to connect to:\n>>");
 
     size_t selected;
     std::cin >> selected;
@@ -60,10 +61,10 @@ static void main_dial()
     std::vector<discovery::ssdp_res> responses = discovery::upnp_discovery();
     for(const auto& it : responses)
     {
-        std::cout << "--------------------\n";
+        fmt::print("-----------------\n");
         for(const auto& mit : it)
-            std::cout << mit.first << " => " << mit.second << '\n';
-        std::cout << "--------------------\n" << std::endl;
+            fmt::print("{} => {}\n", mit.first, mit.second);
+        fmt::print("------------------------\n");
 
         std::string addr;
         std::string path;
@@ -76,9 +77,9 @@ static void main_dial()
 
         net::tcp_connection<net::ip_version::v4> conn {addr, port};
 
-        std::string req_str {"GET "};
-        (((req_str += path) += " HTTP/1.1\r\nHOST: ") += addr) +=  "\r\n\r\n";
-        std::cout << req_str << '\n';
+        std::string req_str = fmt::format("GET {} HTTP/1.1\r\nHOST: {}\r\n\r\n", path, addr);
+
+        fmt::print("{}", req_str);
 
         conn.send(net::span {req_str.begin(), req_str.end()});
 
@@ -86,7 +87,7 @@ static void main_dial()
         //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
         std::array<char, 4096> buffer;
         size_t br = conn.read(net::span {buffer});
-        std::cout << buffer.data() << std::endl;
+        fmt::print("{}", buffer.data());
 
         // TODO Parse and check if there is a service of type dial
         // parse_services();
@@ -111,7 +112,7 @@ int main()
         int signum = 0;
         sigwait(&sigset, &signum);
         run_condition.store(false);
-        std::cout << "Shutting down ...\n";
+        fmt::print("Shutting down...\n");
 
         // Quick and dirty to stop waiting for accept in the web server
         // Maybe improve this later
@@ -122,11 +123,11 @@ int main()
         return signum;
     });
 
-    std::cout << "Scanning network for cast-enabled devices...\n";
+    fmt::print("Scanning network for cast-enabled devices...\n");
     std::vector<device_ptr> device_list = get_devices();
     if(device_list.empty())
     {
-        std::cout << "No devices found...\nPress Ctrl+C to exit.\n";
+        fmt::print("No devices found...\nPress Ctrl+C to exit.\n");
         signal_handler.get();
         return EXIT_SUCCESS;
     }
@@ -134,7 +135,7 @@ int main()
     device_ptr& device = select_device(device_list);
     if(!device->connect())
     {
-        std::cout << "Connection failed...\nPress Ctrl+C to exit.\n";
+        fmt::print("Connection failed...\nPress Ctrl+C to exit.\n");
         signal_handler.get();
         return EXIT_FAILURE;
     }
@@ -148,15 +149,18 @@ int main()
     // worker.emplace_back(init_capture, std::ref(run_condition));
 
     googlecast::default_media_receiver dmr {*reinterpret_cast<googlecast::cast_device*>(device.get())};
-    std::cout << (dmr.set_media(googlecast::media_data {"http://" + utils::get_local_ipaddr() + ":5770/index.m3u8", "application/x-mpegurl"}) ?
-        "Launched" : "Launch error") << std::endl;
+    bool launch_flag = dmr.set_media(googlecast::media_data {
+        fmt::format("http://{}:5770/index.m3u8", utils::get_local_ipaddr()),
+        "application/x-mpegurl"
+    });
+    fmt::print("Status: {}", (launch_flag) ? "Launched" : "Launch error");
 
     // Wait for signal and shut down all threads
     int signal = signal_handler.get();
     for(auto& t : worker)
     {
         t.join();
-        std::cout << "Worker returned" << std::endl;
+        fmt::print("Worker returned\n");
     }
 
     return EXIT_SUCCESS;
