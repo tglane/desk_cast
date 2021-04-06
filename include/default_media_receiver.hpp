@@ -2,7 +2,6 @@
 #define DEFAULT_MEDIA_RECEIVER_HPP
 
 #include <memory>
-#include <iostream>
 
 #include "cast_device.hpp"
 
