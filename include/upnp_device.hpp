@@ -6,6 +6,7 @@
 
 #include "ssdp_discovery.hpp"
 #include "socketwrapper.hpp"
+#include "rapidxml/rapidxml_ext.hpp"
 
 namespace upnp
 {
@@ -16,6 +17,11 @@ struct upnp_service
     std::string control_url;
     std::string scpd_url;
     std::string event_sub_url;
+};
+
+struct service_parameter
+{
+    // TODO
 };
 
 // TODO Add device status?
@@ -36,7 +42,7 @@ public:
     bool service_available(std::string_view service_id) const;
 
     // TODO
-    bool use_service(std::string_view service_id) const;
+    bool use_service(std::string_view service_id, const service_parameter& param) const;
 
     void launch_media() const;
 

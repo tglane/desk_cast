@@ -2,7 +2,6 @@
 
 #include "http/request.hpp"
 #include "http/response.hpp"
-#include "rapidxml/rapidxml_ext.hpp"
 
 #include <chrono>
 #include <algorithm>
@@ -84,7 +83,7 @@ bool upnp_device::service_available(std::string_view service_id) const
         return false;
 }
 
-bool upnp_device::use_service(std::string_view service_id) const
+bool upnp_device::use_service(std::string_view service_id, const service_parameter& param) const
 {
     if(!service_available(service_id))
         return false;
@@ -97,6 +96,7 @@ void upnp_device::launch_media() const
     // Method just for checking how to instruct a upnp media renderer to stream a (video) file
     // Later on there will be only the function use_service() in this class and maybe a seperate upnp renderer/streamer class
     // std::string request {"POST /dmr/control_2 HTTP/1.1\r\nContent-Type: text/xml\r\nSOAPAction: \"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI\"\r\n\r\n<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><CurrentURI>http://techslides.com/demos/sample-videos/small.mp4</CurrentURI><CurrentURIMetaData /></u:SetAVTransportURI></s:Body></s:Envelope>\r\n\r\n"};
+
 
     std::string request {"POST /dmr/control_2 HTTP/1.1\r\nContent-Type: text/xml\r\nSOAPAction: \"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI\"\r\n\r\n<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><CurrentURI>http://192.168.178.20:5770/test_video.mp4</CurrentURI><CurrentURIMetaData /></u:SetAVTransportURI></s:Body></s:Envelope>\r\n\r\n"};
 
