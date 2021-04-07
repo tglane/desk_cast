@@ -3,6 +3,8 @@
 #include "http/request.hpp"
 #include "http/response.hpp"
 
+#include "fmt/format.h"
+
 #include <chrono>
 #include <algorithm>
 #include <thread>
@@ -64,7 +66,7 @@ bool upnp_device::connect()
             service_node->first_node("eventSubURL")->value()
         });
 
-        std::cout << "ID:" << serv.id << " Servies url: " << serv.control_url << '\n';
+        fmt::print("ID: {} | Service url: {}\n", serv.id, serv.control_url);
     }
 
     m_connected = true;

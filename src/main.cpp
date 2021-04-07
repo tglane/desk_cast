@@ -72,10 +72,10 @@ static void main_upnp()
         upnp::upnp_device device {it};
         if(!device.connect())
         {
-            std::cout << "Can not connect to the device.\n";
+            fmt::print("Unable to connect the device\n");
             return;
         }
-        std::cout << "Connected to UPNP Device\n";
+        fmt::print("Connected to UPNP device\n");
 
         // device.use_service();
         device.launch_media();
