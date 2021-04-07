@@ -18,6 +18,7 @@
 
 using nlohmann::json;
 using cast_message = extensions::core_api::cast_channel::CastMessage;
+using cond_ptr = std::unique_ptr<std::condition_variable>;
 
 namespace googlecast
 {
@@ -30,7 +31,7 @@ struct app_details
     std::string transport_id;
     json namespaces;
 
-    operator bool() const
+    explicit operator bool() const
     {
         return (!id.empty() && !transport_id.empty() && !session_id.empty());
     }
@@ -51,15 +52,15 @@ public:
     cast_device() = delete;
     cast_device(const cast_device&) = delete;
     cast_device& operator=(const cast_device&) = delete;
-    cast_device(cast_device&& other);
-    cast_device& operator=(cast_device&& other);
+    cast_device(cast_device&& other) noexcept;
+    cast_device& operator=(cast_device&& other) noexcept;
     ~cast_device();
 
     cast_device(const discovery::mdns_res& res, std::string_view ssl_cert, std::string_view ssl_key);
-    
-    bool connect();
 
-    bool disconnect();
+    bool connect() override;
+
+    bool disconnect() override;
 
     bool app_available(std::string_view app_id) const;
 
@@ -67,18 +68,23 @@ public:
 
     void close_app();
 
-    bool set_volume(double level);
+    bool set_volume(double level) override;
 
-    bool set_muted(bool muted);
+    bool set_muted(bool muted) override;
 
     json get_status() const;
+
+    bool connected() const
+    {
+        return m_connected.load();
+    }
 
     inline app_details get_app_details() const
     {
         return m_active_app;
     }
 
-    inline const std::string& get_name() const
+    inline const std::string& get_name() const override
     {
         return m_name;
     }
@@ -87,31 +93,29 @@ private:
 
     struct ssl_keypair_path
     {
-        std::string_view cert_path;
-        std::string_view key_path;
+        std::string cert_path;
+        std::string key_path;
     };
 
-    bool send(const std::string_view nspace, std::string_view payload, const std::string_view dest_id = "receiver-0") const;
+    class device_connection;
 
-    bool send_json(const std::string_view nspace, json payload, const std::string_view dest_id = "receiver-0") const
+    /// Private member functions
+
+    bool send(std::string_view nspace, std::string_view payload, std::string_view dest_id = "receiver-0") const;
+
+    bool send_json(const std::string_view nspace, const json& payload, const std::string_view dest_id = "receiver-0") const
     {
         return send(nspace, std::string_view {payload.dump()}, dest_id);
     }
 
-    json send_recv(const std::string_view nspace, const json& payload, const std::string_view dest_id = "receiver-0") const;
+    json send_recv(std::string_view nspace, const json& payload, std::string_view dest_id = "receiver-0") const;
 
     /// Private member variables
 
-
     ssl_keypair_path m_keypair;
 
-    std::unique_ptr<net::tls_connection<net::ip_version::v4>> m_sock {nullptr};
+    std::unique_ptr<device_connection> m_connection {nullptr};
 
-    std::future<void> m_heartbeat;
-
-    std::future<void> m_recv_loop;
-
-    using cond_ptr = std::unique_ptr<std::condition_variable>;
     mutable std::unordered_map<uint64_t, std::pair<cond_ptr, json>> m_msg_store;
 
     mutable std::mutex m_msg_mutex;

@@ -15,9 +15,9 @@ public:
 
     virtual bool disconnect() = 0;
 
-    virtual void close_app() = 0;
+    // virtual void close_app() = 0;
 
-    virtual bool launch_app(std::string_view, json&&) = 0;
+    // virtual bool launch_app(std::string_view, json&&) = 0;
 
     virtual bool set_volume(double level) = 0;
 
@@ -29,4 +29,3 @@ public:
 using device_ptr = std::unique_ptr<device>;
 
 #endif
-

@@ -13,8 +13,6 @@
 
 #include <sys/ioctl.h>
 
-#include <iostream>
-
 namespace discovery
 {
 
@@ -84,7 +82,7 @@ static size_t read_fqdn(const std::vector<char>& data, size_t offset, std::strin
     result.clear();
     size_t pos = offset;
 
-    while(1)
+    while(true)
     {
         if(pos >= data.size())
             return 0;
@@ -251,8 +249,6 @@ void parse_a_record(const mdns_record& rec, std::string& dest_addr)
         dest_addr.append((i < rec.data.size() - 1) ? 
             std::to_string(static_cast<unsigned char>(rec.data[i])) + '.' : 
             std::to_string(static_cast<unsigned char>(rec.data[i])));
-
 }
 
 } // namespace discovery
-

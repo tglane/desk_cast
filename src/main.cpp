@@ -1,7 +1,8 @@
-#include <iostream>
 #include <memory>
 #include <thread>
-#include <signal.h>
+#include <csignal>
+
+#include "fmt/format.h"
 
 #include "socketwrapper.hpp"
 
@@ -9,6 +10,7 @@
 #include "mdns_discovery.hpp"
 #include "device.hpp"
 #include "cast_device.hpp"
+#include "default_media_receiver.hpp"
 #include "upnp_device.hpp"
 #include "utils.hpp"
 
@@ -23,16 +25,15 @@
 static std::vector<std::unique_ptr<device>> get_devices()
 {
     std::vector<std::unique_ptr<device>> devices;
-
     // TODO Extend this to get all device types available
     // Get googlecast devices via mdns request
 
     std::vector<discovery::mdns_res> mdns = discovery::mdns_discovery("_googlecast._tcp.local");
-    if(mdns.size() > 0)
+    if(!mdns.empty())
     {
-        for(size_t i = 0; i < mdns.size(); i++)
+        for(const auto& mdns_res : mdns)
         {
-            devices.push_back(std::make_unique<googlecast::cast_device>(mdns[i], std::string_view {SSL_CERT}, std::string_view {SSL_KEY}));
+            devices.push_back(std::make_unique<googlecast::cast_device>(mdns_res, std::string_view {SSL_CERT}, std::string_view {SSL_KEY}));
         }
     }
 
@@ -41,23 +42,19 @@ static std::vector<std::unique_ptr<device>> get_devices()
 
 static device_ptr& select_device(std::vector<device_ptr>& devices)
 {
-    size_t selected;
+    fmt::print("Detected {} device(s) in your local network.\n-------------------------------\n", devices.size());
     for(size_t i = 0; i < devices.size(); i++)
     {
-        std::cout << i << " | " << devices[i]->get_name() << '\n';
+        fmt::print("{} | {}\n", i, devices[i]->get_name());
     }
-    std::cout << "\nSelect the device you want to connect to:\n>> ";
+    fmt::print("\nSelect the device you want to connect to:\n>>");
+
+    size_t selected;
     std::cin >> selected;
     if(selected >= devices.size())
         selected = 0; // Default selection
 
     return devices[selected];
-}
-
-static bool launch_app_on_device(device* dev)
-{
-    // TODO Change this to work with all device types
-    return googlecast::start_live_stream(*static_cast<googlecast::cast_device*>(dev), "http://" + utils::get_local_ipaddr() + ":5770/index.m3u8");
 }
 
 static void main_upnp() 
@@ -99,6 +96,7 @@ static void block_signals(sigset_t* sigset)
 
 int main()
 {
+    // TODO This is just to develop the upnp device connection
     main_upnp();
     return 0;
 
@@ -110,7 +108,7 @@ int main()
         int signum = 0;
         sigwait(&sigset, &signum);
         run_condition.store(false);
-        std::cout << "Shutting down ...\n";
+        fmt::print("Shutting down...\n");
 
         // Quick and dirty to stop waiting for accept in the web server
         try {
@@ -120,17 +118,11 @@ int main()
         return signum;
     });
 
-    // TODO Split up code
-    // -> Create condition to close app...
-    // -> Use main_dial/main_mdns to get the device to connect to
-    // -> When we have a device, launch screenrecorder in background thread (not implemented yet) (loop)
-    // -> Launch webserver serving the cast devices in background thread (loop)
-    // -> Launch the app on the selected device in main thread
-
+    fmt::print("Scanning network for cast-enabled devices...\n");
     std::vector<device_ptr> device_list = get_devices();
-    if(device_list.size() == 0)
+    if(device_list.empty())
     {
-        std::cout << "No devices found...\nPress Ctrl+C to exit.\n";
+        fmt::print("No devices found...\nPress Ctrl+C to exit.\n");
         signal_handler.get();
         return EXIT_SUCCESS;
     }
@@ -138,7 +130,7 @@ int main()
     device_ptr& device = select_device(device_list);
     if(!device->connect())
     {
-        std::cout << "Connection failed...\nPress Ctrl+C to exit.\n";
+        fmt::print("Connection failed...\nPress Ctrl+C to exit.\n");
         signal_handler.get();
         return EXIT_FAILURE;
     }
@@ -151,14 +143,19 @@ int main()
     });
     // worker.emplace_back(init_capture, std::ref(run_condition));
 
-    std::cout << (launch_app_on_device(device.get()) ? "Launched" : "Launch error") << std::endl;
+    googlecast::default_media_receiver dmr {*reinterpret_cast<googlecast::cast_device*>(device.get())};
+    bool launch_flag = dmr.set_media(googlecast::media_data {
+        fmt::format("http://{}:5770/index.m3u8", utils::get_local_ipaddr()),
+        "application/x-mpegurl"
+    });
+    fmt::print("Status: {}", (launch_flag) ? "Launched" : "Launch error");
 
     // Wait for signal and shut down all threads
     int signal = signal_handler.get();
     for(auto& t : worker)
     {
         t.join();
-        std::cout << "Worker returned" << std::endl;
+        fmt::print("Worker returned\n");
     }
 
     return EXIT_SUCCESS;
