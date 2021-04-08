@@ -8,7 +8,7 @@ LDFLAGS := -std=c++17 -L./lib -lpthread -lcrypto -lssl -lprotobuf -lfmt -lavcode
 APPNAME = desk_cast
 
 SRCDIR = src
-SRCFILES = $(wildcard $(SRCDIR)/*.cpp) $(wildcard $(SRCDIR)/*/*.cpp)
+SRCFILES = $(shell find ./$(SRCDIR) -name '*.cpp')
 OBJDIR = src
 OBJFILES = ${SRCFILES:.cpp=.o}
 
