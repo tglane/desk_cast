@@ -4,16 +4,10 @@
 #include <memory>
 
 #include "cast_device.hpp"
+#include "utils.hpp"
 
 namespace googlecast
 {
-
-struct media_data
-{
-    // TODO Maybe add more states if necessary
-    std::string url;
-    std::string mime_type;
-};
 
 class default_media_receiver
 {
@@ -43,7 +37,7 @@ public:
         // TODO Maybe launch the dmr but without any content?
     }
 
-    bool set_media(const media_data& data)
+    bool set_media(const utils::media_data& data)
     {
         if(m_status == dmr_status::closed)
             throw std::runtime_error {"Connection already closed."};

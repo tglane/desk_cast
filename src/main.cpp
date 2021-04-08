@@ -12,6 +12,7 @@
 #include "cast_device.hpp"
 #include "default_media_receiver.hpp"
 #include "upnp_device.hpp"
+#include "media_renderer.hpp"
 #include "utils.hpp"
 
 #include "http/webserver.hpp"

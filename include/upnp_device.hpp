@@ -35,7 +35,7 @@ public:
     upnp_device& operator=(upnp_device&&) =default;
     ~upnp_device() = default;
 
-    upnp_device(const discovery::ssdp_res& res);
+    explicit upnp_device(const discovery::ssdp_res& res);
 
     bool connect();
 
@@ -48,9 +48,12 @@ public:
 
     const upnp_service& get_service_information(std::string_view service_id) const;
 
-private:
+    bool connected() const
+    {
+        return m_connected;
+    }
 
-    std::unique_ptr<net::tcp_connection<net::ip_version::v4>> m_sock {nullptr};
+private:
 
     // TODO only take the important parts of this struct and dont store the complete struct
     discovery::ssdp_res m_discovery_res;
