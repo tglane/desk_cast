@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <optional>
 
 #include "ssdp_discovery.hpp"
 #include "socketwrapper.hpp"
@@ -22,6 +23,8 @@ struct upnp_service
 struct service_parameter
 {
     // TODO
+    std::string method;
+    std::string method_body;
 };
 
 // TODO Add device status?
@@ -41,12 +44,12 @@ public:
 
     bool service_available(std::string_view service_id) const;
 
+    std::optional<std::reference_wrapper<const upnp_service>> get_service_information(std::string_view service_id) const;
+
     // TODO
     bool use_service(std::string_view service_id, const service_parameter& param) const;
 
     void launch_media() const;
-
-    const upnp_service& get_service_information(std::string_view service_id) const;
 
     bool connected() const
     {
@@ -67,4 +70,3 @@ private:
 } // namespace upnp
 
 #endif
-

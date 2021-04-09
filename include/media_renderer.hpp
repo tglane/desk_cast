@@ -9,6 +9,7 @@ namespace upnp
 
 class media_renderer
 {
+    // TODO Implement media renderer status system as shown in upnp description
 public:
 
     explicit media_renderer(upnp_device& device)
@@ -17,19 +18,20 @@ public:
         if(!m_device.connected())
         {
             // TODO Improve this
-            for(uint8_t i = 0; !m_deivce.connect() && i < 5; ++i)
-            if(!m_deivce.connected())
+            for(uint8_t i = 0; !m_device.connect() && i < 5; ++i)
+            if(!m_device.connected())
                 throw std::runtime_error {"Can not connect to device."};
         }
 
-        if(!m_device.app_available())
+        // TODO Set correct service id
+        if(!m_device.service_available(""))
             throw std::runtime_error {"Device does not support Media Renderer."};
     }
 
     bool set_media(const utils::media_data& data)
     {
-        // TODO
-        return true;
+        // TODO Use m_device.use_service(...) function here to play the media defined in data
+        return m_device.use_service("", service_parameter {"", rapidxml::xml_document<char> {}});
     }
 
 private:
@@ -41,4 +43,3 @@ private:
 } // namespace upnp
 
 #endif
-

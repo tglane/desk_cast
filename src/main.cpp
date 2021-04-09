@@ -43,6 +43,8 @@ static std::vector<std::unique_ptr<device>> get_devices()
 
 static device_ptr& select_device(std::vector<device_ptr>& devices)
 {
+    // TDOD Do this in a CLI class/module
+
     fmt::print("Detected {} device(s) in your local network.\n-------------------------------\n", devices.size());
     for(size_t i = 0; i < devices.size(); i++)
     {
@@ -58,7 +60,7 @@ static device_ptr& select_device(std::vector<device_ptr>& devices)
     return devices[selected];
 }
 
-static void main_upnp() 
+static void main_upnp()
 {
     std::atomic<bool> run_condition {true};
     std::thread webserver_t {[&run_condition]() {
@@ -78,8 +80,13 @@ static void main_upnp()
         }
         fmt::print("Connected to UPNP device\n");
 
-        // device.use_service();
         device.launch_media();
+
+        upnp::media_renderer mr {device};
+        mr.set_media(utils::media_data {
+            fmt::format("http://{}:5770/test_video.mp4", utils::get_local_ipaddr()),
+            ""
+        });
 
         for(;;)
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -145,7 +152,7 @@ int main()
     // worker.emplace_back(init_capture, std::ref(run_condition));
 
     googlecast::default_media_receiver dmr {*reinterpret_cast<googlecast::cast_device*>(device.get())};
-    bool launch_flag = dmr.set_media(googlecast::media_data {
+    bool launch_flag = dmr.set_media(utils::media_data {
         fmt::format("http://{}:5770/index.m3u8", utils::get_local_ipaddr()),
         "application/x-mpegurl"
     });
@@ -161,4 +168,3 @@ int main()
 
     return EXIT_SUCCESS;
 }
-
