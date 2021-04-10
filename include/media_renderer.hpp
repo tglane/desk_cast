@@ -4,12 +4,14 @@
 #include "upnp_device.hpp"
 #include "utils.hpp"
 
+#include "fmt/format.h"
+
 namespace upnp
 {
 
 class media_renderer
 {
-    // TODO Implement media renderer status system as shown in upnp description
+    // TODO Implement media renderer status system as shown in upnp description as enum class
 public:
 
     explicit media_renderer(upnp_device& device)
@@ -30,8 +32,10 @@ public:
 
     bool set_media(const utils::media_data& data)
     {
-        // TODO Use m_device.use_service(...) function here to play the media defined in data
-        return m_device.use_service("", service_parameter {"", rapidxml::xml_document<char> {}});
+        // TODO Check how to set the mime type here. Maybe as part of CurrentURIMetaData
+        return m_device.use_service("urn:schemas-upnp-org:service:AVTransport",
+            service_parameter {"SetAVTransportURI", fmt::format("<CurrentURI>{}</CurrentURI><CurrentURIMetaData /></u:SetAVTransportURI>", data.url)}
+        );
     }
 
 private:

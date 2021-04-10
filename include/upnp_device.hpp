@@ -23,22 +23,25 @@ struct upnp_service
 struct service_parameter
 {
     // TODO
-    std::string method;
-    std::string method_body;
+    std::string action;
+    std::string body;
 };
 
-// TODO Add device status?
 class upnp_device
 {
+// TODO Add device status enum class?
 public:
+
     upnp_device() = delete;
     upnp_device(const upnp_device&) = delete;
     upnp_device& operator=(const upnp_device&) = delete;
     upnp_device(upnp_device&&) = default;
-    upnp_device& operator=(upnp_device&&) =default;
+    upnp_device& operator=(upnp_device&&) = default;
     ~upnp_device() = default;
 
     explicit upnp_device(const discovery::ssdp_res& res);
+
+    explicit upnp_device(discovery::ssdp_res&& res);
 
     bool connect();
 
@@ -46,10 +49,9 @@ public:
 
     std::optional<std::reference_wrapper<const upnp_service>> get_service_information(std::string_view service_id) const;
 
-    // TODO
     bool use_service(std::string_view service_id, const service_parameter& param) const;
 
-    void launch_media() const;
+    void launch_media() const; // TODO Remove when finished testing
 
     bool connected() const
     {
@@ -58,12 +60,15 @@ public:
 
 private:
 
-    // TODO only take the important parts of this struct and dont store the complete struct
-    discovery::ssdp_res m_discovery_res;
+    bool m_connected = false;
+
+    std::string m_addr;
+
+    uint16_t m_port;
+
+    std::string m_description_path;
 
     std::vector<upnp_service> m_services;
-
-    bool m_connected = false;
 
 };
 

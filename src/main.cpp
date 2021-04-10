@@ -80,17 +80,14 @@ static void main_upnp()
         }
         fmt::print("Connected to UPNP device\n");
 
-        device.launch_media();
-
         upnp::media_renderer mr {device};
         mr.set_media(utils::media_data {
             fmt::format("http://{}:5770/test_video.mp4", utils::get_local_ipaddr()),
-            ""
+            "video/mp4"
         });
 
         for(;;)
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        return;
     }
 }
 

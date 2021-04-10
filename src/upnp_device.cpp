@@ -8,7 +8,6 @@
 #include <chrono>
 #include <algorithm>
 #include <thread>
-#include <sys/ioctl.h>
 
 using namespace std::chrono_literals;
 using namespace rapidxml;
@@ -17,15 +16,22 @@ namespace upnp
 {
 
 upnp_device::upnp_device(const discovery::ssdp_res& res)
-    : m_discovery_res {res}
+    : m_addr {res.location.ip},
+      m_port {res.location.port},
+      m_description_path {res.location.path}
+{}
+
+upnp_device::upnp_device(discovery::ssdp_res&& res)
+    : m_addr {static_cast<std::string&&>(res.location.ip)},
+      m_port {res.location.port},
+      m_description_path {static_cast<std::string&&>(res.location.path)}
 {}
 
 bool upnp_device::connect()
 {
-    net::tcp_connection<net::ip_version::v4> sock {m_discovery_res.location.ip, m_discovery_res.location.port};
+    net::tcp_connection<net::ip_version::v4> sock {m_addr, m_port};
 
-    const discovery::ssdp_location& loc = m_discovery_res.location;
-    std::string req_str = ("GET " + loc.path + " HTTP/1.1\r\nHOST: " + loc.ip + ":" + std::to_string(loc.port) +  "\r\n\r\n");
+    std::string req_str = fmt::format("GET {} HTTP/1.1\r\nHOST: {}:{}\r\n\r\n", m_description_path, m_addr, m_port);
     sock.send(net::span {req_str.begin(), req_str.end()});
 
     // Receive HTTP response containing XML body
@@ -110,12 +116,12 @@ bool upnp_device::use_service(std::string_view service_id, const service_paramet
         "POST {0} HTTP/1.1\r\nContent-Type: text/xml\r\nSOAPAction: \"{1}:1#{2}\"\r\n\r\n<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:{2} xmlns:u=\"{1}:1\"><InstanceID>0</InstanceID>{3}</u:{1}></s:Body></s:Envelope>\r\n\r\n",
         opt_service->get().control_url,
         service_id,
-        param.method,
-        param.method_body // Contains current uri and uri metadata when using av transport for example
+        param.action,
+        param.body // Contains current uri and uri metadata when using av transport for example
     );
 
     try {
-        net::tcp_connection<net::ip_version::v4> sock {m_discovery_res.location.ip, m_discovery_res.location.port};
+        net::tcp_connection<net::ip_version::v4> sock {m_addr, m_port};
         sock.send(net::span {request});
         return true;
     } catch(std::runtime_error&) {
@@ -134,10 +140,10 @@ void upnp_device::launch_media() const
 
     // std::string request {"POST /dmr/control_2 HTTP/1.1\r\nContent-Type: text/xml; charset=utf-8\r\nSOAPAction: \"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI\"\r\n\r\n<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:SetAVTransportURI xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><CurrentURI>http://192.168.178.20:5770/index.m3u8</CurrentURI><CurrentURIMetaData /></u:SetAVTransportURI></s:Body></s:Envelope>\r\n\r\n"};
 
-    net::tcp_connection<net::ip_version::v4> sock {m_discovery_res.location.ip, m_discovery_res.location.port};
+    net::tcp_connection<net::ip_version::v4> sock {m_addr, m_port};
     sock.send(net::span {request.begin(), request.end()});
 
-    net::tcp_connection<net::ip_version::v4> sock_two {m_discovery_res.location.ip, m_discovery_res.location.port};
+    net::tcp_connection<net::ip_version::v4> sock_two {m_addr, m_port};
     std::string play_req {"POST /dmr/control_2 HTTP/1.1\r\nContent-Type: text/xml\r\nSOAPAction: \"urn:schemas-upnp-org:service:AVTransport:1#Play\"\r\n\r\n<?xml version=\"1.0\" encoding=\"utf-8\"?><s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\"><s:Body><u:Play xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><Speed>1</Speed></u:Play></s:Body></s:Envelope>\r\n\r\n"};
     sock_two.send(net::span {play_req.begin(), play_req.end()});
 }
