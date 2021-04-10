@@ -65,14 +65,16 @@ bool upnp_device::connect()
     xml_node<char>* service_root = device_node->first_node("serviceList");
     for(xml_node<char>* service_node = service_root->first_node("service"); service_node; service_node = service_node->next_sibling())
     {
+        // The serviceId ist the last part of a schema string with the form urn:upnp-org:serviceId:RenderingControl
+        std::string_view service_view {service_node->first_node("serviceId")->value()};
+        size_t service_offset = service_view.find_last_of(":") + 1;
+
         const auto& serv = m_services.emplace_back(upnp_service {
-            service_node->first_node("serviceId")->value(),
+            service_node->first_node("serviceId")->value() + service_offset,
             service_node->first_node("controlURL")->value(),
             service_node->first_node("SCPDURL")->value(),
             service_node->first_node("eventSubURL")->value()
         });
-
-        fmt::print("ID: {} | Service url: {}\n", serv.id, serv.control_url);
     }
 
     m_connected = true;
@@ -113,13 +115,14 @@ bool upnp_device::use_service(std::string_view service_id, const service_paramet
 
     // TODO Get format parameter from service_parameter
     std::string request = fmt::format(
-        "POST {0} HTTP/1.1\r\nContent-Type: text/xml\r\nSOAPAction: \"{1}:1#{2}\"\r\n\r\n<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:{2} xmlns:u=\"{1}:1\"><InstanceID>0</InstanceID>{3}</u:{1}></s:Body></s:Envelope>\r\n\r\n",
+        "POST {0} HTTP/1.1\r\nContent-Type: text/xml\r\nSOAPAction: \"urn:schemas-upnp-org:service:{1}:1#{2}\"\r\n\r\n<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:{2} xmlns:u=\"urn:schemas-upnp-org:service:{1}:1\"><InstanceID>0</InstanceID>{3}</u:{2}></s:Body></s:Envelope>\r\n\r\n",
         opt_service->get().control_url,
         service_id,
         param.action,
         param.body // Contains current uri and uri metadata when using av transport for example
     );
 
+    fmt::print("Request: {}", request);
     try {
         net::tcp_connection<net::ip_version::v4> sock {m_addr, m_port};
         sock.send(net::span {request});

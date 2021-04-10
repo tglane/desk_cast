@@ -26,16 +26,24 @@ public:
         }
 
         // TODO Set correct service id
-        if(!m_device.service_available(""))
+        if(!m_device.service_available("AVTransport"))
             throw std::runtime_error {"Device does not support Media Renderer."};
     }
 
     bool set_media(const utils::media_data& data)
     {
         // TODO Check how to set the mime type here. Maybe as part of CurrentURIMetaData
-        return m_device.use_service("urn:schemas-upnp-org:service:AVTransport",
-            service_parameter {"SetAVTransportURI", fmt::format("<CurrentURI>{}</CurrentURI><CurrentURIMetaData /></u:SetAVTransportURI>", data.url)}
-        );
+        // TODO Check the responses from the device to decide which return value is to send
+
+        // First set the media content on the device
+        m_device.use_service("AVTransport", service_parameter {
+            "SetAVTransportURI", fmt::format("<CurrentURI>{}</CurrentURI><CurrentURIMetaData />", data.url)
+        });
+        // Second send the launch request
+        m_device.use_service("AVTransport", service_parameter {
+            "Play", "<Speed>1</Speed>"
+        });
+        return true;
     }
 
 private:
