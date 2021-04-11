@@ -130,7 +130,6 @@ bool upnp_device::use_service(std::string_view service_id, const service_paramet
         param.body // Contains current uri and uri metadata when using av transport for example
     );
 
-    fmt::print("Request: {}", request);
     try {
         net::tcp_connection<net::ip_version::v4> sock {m_addr, m_port};
         sock.send(net::span {request});

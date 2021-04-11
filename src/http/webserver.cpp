@@ -13,7 +13,7 @@
 #include <atomic>
 #include <charconv>
 
-#include <iostream>
+#include "fmt/format.h"
 
 namespace http
 {
@@ -40,7 +40,7 @@ static void serve_hls_stream(net::tcp_connection<net::ip_version::v4>&& conn)
         return;
     }
 
-    std::cout << "[DEBUG]:\n" << req.to_string() << std::endl;
+    // fmt::print("[HTTP REQUEST]\n{}\n", req.to_string());
 
     std::string_view pv = req.get_path();
     std::string path;
@@ -50,7 +50,7 @@ static void serve_hls_stream(net::tcp_connection<net::ip_version::v4>&& conn)
 
     // Read file
     std::vector<char> img = file_to_binary(path.data());
-    if(img.size() <= 0) 
+    if(img.size() <= 0)
     {
         response res;
         res.set_code(400, "Bad Request");
@@ -77,7 +77,7 @@ static void serve_hls_stream(net::tcp_connection<net::ip_version::v4>&& conn)
         }
 
         res.set_code(206, "Partial Content");
-        res.set_header("Content-Range", "bytes " + std::to_string(start) + '-' + 
+        res.set_header("Content-Range", "bytes " + std::to_string(start) + '-' +
             std::to_string(end - start - 1) + '/' + std::to_string(img.size()));
         res.set_body(std::string {img.begin() + start, img.begin() + end});
     }
@@ -87,7 +87,7 @@ static void serve_hls_stream(net::tcp_connection<net::ip_version::v4>&& conn)
         res.set_header("Content-Length", std::to_string(img.size()));
         res.set_body(std::string {img.begin(), img.end()});
     }
-    
+
     // CORS
     res.set_header("Accept-Ranges", "bytes");
     res.set_header("Access-Control-Allow-Origin", "*");
@@ -98,7 +98,6 @@ static void serve_hls_stream(net::tcp_connection<net::ip_version::v4>&& conn)
 
 void webserver::serve(std::atomic<bool>& run_condition)
 {
-    std::cout << "Webserver serving ..." << std::endl;
     while(run_condition.load())
     {
         try {
@@ -110,9 +109,6 @@ void webserver::serve(std::atomic<bool>& run_condition)
             serve_hls_stream(m_acceptor.accept());
         } catch(std::runtime_error&) {}
     }
-
-    std::cout << "Webserver closing" << std::endl;
 }
 
 } // namespace http
-

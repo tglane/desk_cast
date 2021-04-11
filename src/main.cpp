@@ -117,10 +117,6 @@ static void block_signals(sigset_t* sigset)
 
 int main()
 {
-    // TODO This is just to develop the upnp device connection
-    // main_upnp();
-    // return 0;
-
     sigset_t sigset;
     std::atomic<bool> run_condition {true};
     block_signals(&sigset);
@@ -164,9 +160,14 @@ int main()
     });
     // worker.emplace_back(init_capture, std::ref(run_condition));
 
-    googlecast::default_media_receiver dmr {*reinterpret_cast<googlecast::cast_device*>(device.get())};
-    bool launch_flag = dmr.set_media(utils::media_data {
-        fmt::format("http://{}:5770/index.m3u8", utils::get_local_ipaddr()),
+    // googlecast::default_media_receiver dmr {*static_cast<googlecast::cast_device*>(device.get())};
+    // bool launch_flag = dmr.set_media(utils::media_data {
+    //     fmt::format("http://{}:5770/index.m3u8", utils::get_local_ipaddr()),
+    //     "application/x-mpegurl"
+    // });
+    upnp::media_renderer mr {*static_cast<upnp::upnp_device*>(device.get())};
+    bool launch_flag = mr.set_media(utils::media_data {
+        fmt::format("http://{}:5770/test_video.mp4", utils::get_local_ipaddr()),
         "application/x-mpegurl"
     });
     fmt::print("Status: {}", (launch_flag) ? "Launched" : "Launch error");
