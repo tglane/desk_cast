@@ -74,7 +74,7 @@ public:
 
     json get_status() const;
 
-    bool connected() const
+    bool connected() const override
     {
         return m_connected.load();
     }

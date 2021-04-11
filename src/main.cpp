@@ -27,14 +27,23 @@ static std::vector<std::unique_ptr<device>> get_devices()
 {
     std::vector<std::unique_ptr<device>> devices;
     // TODO Extend this to get all device types available
-    // Get googlecast devices via mdns request
 
-    std::vector<discovery::mdns_res> mdns = discovery::mdns_discovery("_googlecast._tcp.local");
+    // Get googlecast devices via mdns request
+    std::vector<discovery::mdns_res> mdns = discovery::mdns("_googlecast._tcp.local");
     if(!mdns.empty())
     {
-        for(const auto& mdns_res : mdns)
+        for(const auto& res : mdns)
         {
-            devices.push_back(std::make_unique<googlecast::cast_device>(mdns_res, std::string_view {SSL_CERT}, std::string_view {SSL_KEY}));
+            devices.push_back(std::make_unique<googlecast::cast_device>(res, std::string_view {SSL_CERT}, std::string_view {SSL_KEY}));
+        }
+    }
+
+    std::vector<discovery::ssdp_res> ssdp = discovery::ssdp("urn:schemas-upnp-org:device:MediaRenderer:1");
+    if(!ssdp.empty())
+    {
+        for(auto& res : ssdp)
+        {
+            devices.push_back(std::make_unique<upnp::upnp_device>(static_cast<discovery::ssdp_res&&>(res)));
         }
     }
 
@@ -60,6 +69,7 @@ static device_ptr& select_device(std::vector<device_ptr>& devices)
     return devices[selected];
 }
 
+// TODO Remove if everything is implemented correctly so that the real program structure can be used for upnp devices too
 static void main_upnp()
 {
     std::atomic<bool> run_condition {true};
@@ -108,8 +118,8 @@ static void block_signals(sigset_t* sigset)
 int main()
 {
     // TODO This is just to develop the upnp device connection
-    main_upnp();
-    return 0;
+    // main_upnp();
+    // return 0;
 
     sigset_t sigset;
     std::atomic<bool> run_condition {true};

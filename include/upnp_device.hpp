@@ -5,6 +5,7 @@
 #include <vector>
 #include <optional>
 
+#include "device.hpp"
 #include "ssdp_discovery.hpp"
 #include "socketwrapper.hpp"
 #include "rapidxml/rapidxml_ext.hpp"
@@ -27,7 +28,7 @@ struct service_parameter
     std::string body;
 };
 
-class upnp_device
+class upnp_device : public device
 {
 // TODO Add device status enum class?
 public:
@@ -43,7 +44,9 @@ public:
 
     explicit upnp_device(discovery::ssdp_res&& res);
 
-    bool connect();
+    bool connect() override;
+
+    bool disconnect() override;
 
     bool service_available(std::string_view service_id) const;
 
@@ -53,7 +56,16 @@ public:
 
     void launch_media() const; // TODO Remove when finished testing
 
-    bool connected() const
+    bool set_volume(double level) override;
+
+    bool set_muted(bool mute) override;
+
+    const std::string& get_name() const override
+    {
+        return m_name;
+    }
+
+    bool connected() const override
     {
         return m_connected;
     }
@@ -67,6 +79,8 @@ private:
     uint16_t m_port;
 
     std::string m_description_path;
+
+    std::string m_name;
 
     std::vector<upnp_service> m_services;
 

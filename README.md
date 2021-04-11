@@ -21,6 +21,11 @@ This is developed in my spare time so new features will be added inconsistently.
 
 TODOs:
 ------
+* Remove device base class and make dmr and mr owning
+    * No device base class
+    * DMR and MR become derived of new class stream_app (or something similar)
+        * Maybe upnp_app and cast_app as intermediate classes?
+    * DMR and MR own the device
 * Implement structures/classes to properly handle the CLI (seperate the user interface from the `main.cpp`)
   * Select casting mode(image / video file / livestream from desktop)
   * Select the device to cast to (from a list of all devices including googlecast, upnp and airplay if implemented)

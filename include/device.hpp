@@ -4,14 +4,10 @@
 #include <memory>
 #include <string>
 
-#include "json.hpp"
-
-using nlohmann::json;
-
 class device
 {
 public:
-    
+
     virtual ~device() = default;
 
     virtual bool connect() = 0;
@@ -27,6 +23,8 @@ public:
     virtual bool set_muted(bool muted) = 0;
 
     virtual const std::string& get_name() const = 0;
+
+    virtual bool connected() const = 0;
 };
 
 using device_ptr = std::unique_ptr<device>;

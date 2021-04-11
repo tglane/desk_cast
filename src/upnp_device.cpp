@@ -18,13 +18,15 @@ namespace upnp
 upnp_device::upnp_device(const discovery::ssdp_res& res)
     : m_addr {res.location.ip},
       m_port {res.location.port},
-      m_description_path {res.location.path}
+      m_description_path {res.location.path},
+      m_name {res.usn} // TODO
 {}
 
 upnp_device::upnp_device(discovery::ssdp_res&& res)
     : m_addr {static_cast<std::string&&>(res.location.ip)},
       m_port {res.location.port},
-      m_description_path {static_cast<std::string&&>(res.location.path)}
+      m_description_path {static_cast<std::string&&>(res.location.path)},
+      m_name {static_cast<std::string&&>(res.usn)} // TODO
 {}
 
 bool upnp_device::connect()
@@ -78,6 +80,12 @@ bool upnp_device::connect()
     }
 
     m_connected = true;
+    return true;
+}
+
+bool upnp_device::disconnect()
+{
+    // Currently just a dummy function because there is no real standing connection between a control point and a device
     return true;
 }
 
@@ -149,6 +157,18 @@ void upnp_device::launch_media() const
     net::tcp_connection<net::ip_version::v4> sock_two {m_addr, m_port};
     std::string play_req {"POST /dmr/control_2 HTTP/1.1\r\nContent-Type: text/xml\r\nSOAPAction: \"urn:schemas-upnp-org:service:AVTransport:1#Play\"\r\n\r\n<?xml version=\"1.0\" encoding=\"utf-8\"?><s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\"><s:Body><u:Play xmlns:u=\"urn:schemas-upnp-org:service:AVTransport:1\"><InstanceID>0</InstanceID><Speed>1</Speed></u:Play></s:Body></s:Envelope>\r\n\r\n"};
     sock_two.send(net::span {play_req.begin(), play_req.end()});
+}
+
+bool upnp_device::set_volume(double level)
+{
+    // TODO Implement
+    return true;
+}
+
+bool upnp_device::set_muted(bool muted)
+{
+    // TODO Implement
+    return true;
 }
 
 } // namespace dlna
