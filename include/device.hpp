@@ -11,6 +11,9 @@ using nlohmann::json;
 class device
 {
 public:
+    
+    virtual ~device() = default;
+
     virtual bool connect() = 0;
 
     virtual bool disconnect() = 0;
