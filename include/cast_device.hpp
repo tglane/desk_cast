@@ -54,7 +54,7 @@ public:
     cast_device& operator=(const cast_device&) = delete;
     cast_device(cast_device&& other) noexcept;
     cast_device& operator=(cast_device&& other) noexcept;
-    ~cast_device();
+    ~cast_device() override;
 
     cast_device(const discovery::mdns_res& res, std::string_view ssl_cert, std::string_view ssl_key);
 

@@ -50,7 +50,7 @@ static device_ptr& select_device(std::vector<device_ptr>& devices)
     {
         fmt::print("{} | {}\n", i, devices[i]->get_name());
     }
-    fmt::print("\nSelect the device you want to connect to:\n>>");
+    fmt::print("\nSelect the device you want to connect to:\n>> ");
 
     size_t selected;
     std::cin >> selected;
