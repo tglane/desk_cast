@@ -77,15 +77,20 @@ static void serve_hls_stream(net::tcp_connection<net::ip_version::v4>&& conn)
         }
 
         res.set_code(206, "Partial Content");
-        res.set_header("Content-Range", "bytes " + std::to_string(start) + '-' +
-            std::to_string(end - start - 1) + '/' + std::to_string(img.size()));
-        res.set_body(std::string {img.begin() + start, img.begin() + end});
+        res.set_header("Content-Range", fmt::format("bytes {}-{}/{}", start, end - start - 1, img.size()));
+        res.set_header("File-Size", std::to_string(img.size()));
+
+        if(req.get_method() != "HEAD")
+            res.set_body(std::string {img.begin() + start, img.begin() + end});
     }
     else
     {
         res.set_code(200);
         res.set_header("Content-Length", std::to_string(img.size()));
-        res.set_body(std::string {img.begin(), img.end()});
+        res.set_header("File-Size", std::to_string(img.size()));
+
+        if(req.get_method() != "HEAD")
+            res.set_body(std::string {img.begin(), img.end()});
     }
 
     // CORS

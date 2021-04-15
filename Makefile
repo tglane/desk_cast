@@ -2,7 +2,7 @@ CC := g++
 PROTOC := protoc
 
 CFLAGS := -std=c++17 -I./include -fpic -O3 -Werror -Wall -Wextra -pedantic -Wno-unused
-LDFLAGS := -std=c++17 -L./lib -lpthread -lcrypto -lssl -lprotobuf -lfmt -lavcodec -lavformat -lavdevice -lavutil
+LDFLAGS := -std=c++17 -L./lib -lpthread -lcrypto -lssl -lprotobuf -lfmt
 
 APPNAME = desk_cast
 

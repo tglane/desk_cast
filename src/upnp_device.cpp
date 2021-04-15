@@ -39,14 +39,14 @@ bool upnp_device::connect()
     // Receive HTTP response containing XML body
     std::array<char, 4096> buffer;
     size_t bytes_read = 0;
-    for(size_t br = 0; bytes_read < 4096; )
+    for(size_t br = 0; bytes_read < 4095; )
     {
-        br = sock.read(net::span {buffer.data() + br, buffer.size() - br});
-        if(br == 0)
-            break;
-        else
+        if(br = sock.read(net::span {buffer.data() + bytes_read, buffer.size() - bytes_read}); br != 0)
             bytes_read += br;
+        else
+            break;
     }
+    // fmt::print("UPNP xml: {}\n", buffer.data());
 
     const std::string_view header_termination {"\r\n\r\n"};
     auto xml_start = std::search(buffer.begin(), buffer.end(), header_termination.begin(), header_termination.end());
@@ -57,12 +57,14 @@ bool upnp_device::connect()
     xml_document<char> doc;
     try {
         doc.parse<0>(&(*xml_start));
-    } catch(rapidxml::parse_error&) {
-        // Catch wrongly received data
+    } catch(rapidxml::parse_error& p) {
+        fmt::print("ERROR: {}", p.what());
         return false;
     }
 
     // TODO Store device details in member variable
+    // friendlyName
+    // deviceType
     xml_node<char>* device_node = doc.first_node()->first_node("device");
     xml_node<char>* service_root = device_node->first_node("serviceList");
     for(xml_node<char>* service_node = service_root->first_node("service"); service_node; service_node = service_node->next_sibling())
@@ -131,6 +133,7 @@ bool upnp_device::use_service(std::string_view service_id, const service_paramet
     );
 
     try {
+        // TODO Receive answer from device to parse the return value of this function
         net::tcp_connection<net::ip_version::v4> sock {m_addr, m_port};
         sock.send(net::span {request});
         return true;
