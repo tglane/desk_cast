@@ -10,10 +10,6 @@
 
 #include "socketwrapper.hpp"
 
-#define QUERY_IP "224.0.0.251"
-#define QUERY_PORT 5353
-#define QUERY_TIME 5000
-
 namespace discovery
 {
 

@@ -16,6 +16,10 @@
 namespace discovery
 {
 
+constexpr std::string_view query_ip{"224.0.0.251"};
+constexpr uint16_t query_port = 5353;
+constexpr uint16_t query_time = 5000;
+
 constexpr uint16_t MDNS_RESPONSE_FLAG = 0x8400;
 constexpr uint8_t MDNS_OFFSET_TOKEN = 0xC0;
 
@@ -23,25 +27,25 @@ constexpr uint8_t MDNS_OFFSET_TOKEN = 0xC0;
 struct dns_header
 {
     uint16_t id; // identification number
- 
+
     unsigned char rd :1; // recursion desired
     unsigned char tc :1; // truncated message
     unsigned char aa :1; // authoritive answer
     unsigned char opcode :4; // purpose of message
     unsigned char qr :1; // query/response flag
- 
+
     unsigned char rcode :4; // response code
     unsigned char cd :1; // checking disabled
     unsigned char ad :1; // authenticated data
     unsigned char z :1; // its z! reserved
     unsigned char ra :1; // recursion available
- 
+
     uint16_t q_count; // number of question entries
     uint16_t ans_count; // number of answer entries
     uint16_t auth_count; // number of authority entries
     uint16_t add_count; // number of resource entries
 };
- 
+
 //Constant sized fields of query structure
 struct dns_question
 {
@@ -59,7 +63,7 @@ struct dns_query
 static void to_dns_name_format(char* dns, std::string_view host)
 {
     size_t lock = 0;
-     
+
     for(size_t i = 0; i <= host.size(); i++)
     {
         if(i == host.size() || host[i] == '.')
@@ -104,10 +108,10 @@ static size_t read_fqdn(const std::vector<char>& data, size_t offset, std::strin
 static mdns_res parse_mdns_answer(std::vector<char>& buffer)
 {
     dns_header* dns = reinterpret_cast<dns_header*>(buffer.data());
-    
+
     if(buffer.empty() || ntohs(dns->ans_count) == 0 || ntohs(dns->q_count) > 0)
         throw std::invalid_argument {"Not a valid mdns response."};
-    
+
     mdns_res result;
 
     std::istringstream b_stream {std::string(reinterpret_cast<char*>(buffer.data()), buffer.size())};
@@ -129,7 +133,7 @@ static mdns_res parse_mdns_answer(std::vector<char>& buffer)
                 n_len = 2;
             else
                 n_len = read_fqdn(buffer, b_stream.tellg(), rec.name);
-            
+
             b_stream.ignore(n_len);
             b_stream.read(reinterpret_cast<char*>(&u16), 2);
             rec.type = ntohs(u16);
@@ -170,9 +174,9 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
 
     // Send query
     net::udp_socket<net::ip_version::v4> q_sock {"0.0.0.0", 5353};
-    q_sock.send(QUERY_IP, QUERY_PORT, net::span {query.data(), sizeof(dns_header) + (strlen((const char*)qname)+1) + sizeof(dns_question)});
+    q_sock.send(query_ip, query_port, net::span{query.data(), sizeof(dns_header) + (strlen((const char*) qname) + 1) + sizeof(dns_question)});
 
-    // Receive answers for QUERY_TIME seconds
+    // Receive answers for <query_time> seconds
     auto fut = std::async(std::launch::async, [&stop, &q_sock, &res]()
     {
         while(!stop)
@@ -198,7 +202,7 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
         }
     });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(QUERY_TIME));
+    std::this_thread::sleep_for(std::chrono::milliseconds(query_time));
     stop = true;
     fut.get();
 
@@ -216,7 +220,7 @@ void parse_ptr_record(const mdns_record& rec, std::string& dest_name)
 
 void parse_txt_record(const mdns_record& rec, std::unordered_map<std::string, std::string>& dest_txt)
 {
-    // Structure of rec.data: 
+    // Structure of rec.data:
     // [1 byte -> len][key=value of length len]...
     size_t off = 0;
     while(off < rec.data.size())
@@ -246,8 +250,8 @@ void parse_srv_record(const mdns_record& rec, uint32_t& dest_port, std::string& 
 void parse_a_record(const mdns_record& rec, std::string& dest_addr)
 {
     for(size_t i = 0; i < rec.data.size(); i++)
-        dest_addr.append((i < rec.data.size() - 1) ? 
-            std::to_string(static_cast<unsigned char>(rec.data[i])) + '.' : 
+        dest_addr.append((i < rec.data.size() - 1) ?
+            std::to_string(static_cast<unsigned char>(rec.data[i])) + '.' :
             std::to_string(static_cast<unsigned char>(rec.data[i])));
 }
 
