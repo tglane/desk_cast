@@ -17,7 +17,7 @@
 #include "mdns_discovery.hpp"
 
 using nlohmann::json;
-using cast_message = extensions::core_api::cast_channel::CastMessage;
+using cast_message = cast_channel::CastMessage;
 using cond_ptr = std::unique_ptr<std::condition_variable>;
 
 namespace googlecast

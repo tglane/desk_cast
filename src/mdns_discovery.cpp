@@ -154,7 +154,7 @@ static mdns_res parse_mdns_answer(std::vector<char>& buffer)
     return result;
 }
 
-std::vector<mdns_res> mdns_discovery(const std::string& record_name)
+std::vector<mdns_res> mdns_discovery(const std::string& record_name, uint16_t delay)
 {
     bool stop = false;
     std::vector<mdns_res> res;
@@ -202,7 +202,7 @@ std::vector<mdns_res> mdns_discovery(const std::string& record_name)
         }
     });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(query_time));
+    std::this_thread::sleep_for(std::chrono::milliseconds(delay));
     stop = true;
     fut.get();
 

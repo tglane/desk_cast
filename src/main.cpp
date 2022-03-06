@@ -27,7 +27,7 @@ static std::vector<std::unique_ptr<device>> get_devices()
     // TODO Extend this to get all device types available
     // Get googlecast devices via mdns request
 
-    std::vector<discovery::mdns_res> mdns = discovery::mdns_discovery("_googlecast._tcp.local");
+    std::vector<discovery::mdns_res> mdns = discovery::mdns_discovery("_googlecast._tcp.local", 5000);
     if(!mdns.empty())
     {
         for(const auto& mdns_res : mdns)

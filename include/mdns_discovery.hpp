@@ -29,7 +29,7 @@ struct mdns_res
     std::vector<mdns_record> records;
 };
 
-std::vector<mdns_res> mdns_discovery(const std::string& record_name);
+std::vector<mdns_res> mdns_discovery(const std::string& record_name, uint16_t delay);
 
 void parse_ptr_record(const mdns_record& rec, std::string& dest_name);
 
