@@ -2,6 +2,7 @@
 #include <thread>
 #include <csignal>
 
+#define FMT_HEADER_ONLY
 #include "fmt/format.h"
 
 #include "socketwrapper.hpp"

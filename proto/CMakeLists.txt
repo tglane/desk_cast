@@ -1,0 +1,5 @@
+include(FindProtobuf)
+find_package(Protobuf CONFIG REQUIRED)
+include_directories(${PROTOBUF_INCLUDE_DIR})
+protobuf_generate_cpp(PROTO_SRC PROTO_HEADER cast_channel.proto)
+add_library(cast_proto ${PROTO_HEADER} ${PROTO_SRC})

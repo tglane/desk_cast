@@ -1,5 +1,6 @@
 .vscode
 desk_cast
+build
 *.o
 *.pb.o
 *.pb.cc

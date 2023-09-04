@@ -10,7 +10,7 @@
 #include <mutex>
 #include <condition_variable>
 
-#include "../protos/cast_channel.pb.h"
+#include "proto/cast_channel.pb.h"
 #include "device.hpp"
 #include "socketwrapper.hpp"
 #include "json.hpp"
